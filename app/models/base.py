@@ -6,6 +6,7 @@ from sqlalchemy import Column, Table, select, and_, inspect
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import DeclarativeBase
 
+from ..exceptions import NotFoundException
 from ..utils.types import WhereClause, DictStrAny
 
 
@@ -50,7 +51,10 @@ class Base(DeclarativeBase):
     async def get_by_id(cls, session: AsyncSession, item_id: int) -> Optional['Base']:
         query = select(cls).where(cls.get_pk_column() == item_id)  # noqa F821
         result = await session.execute(query)
-        return result.one_or_none()
+        item = result.scalars().first()
+        if item is None:
+            raise NotFoundException(f'{cls.__tablename__} с id {item_id} не найден')
+        return item
 
     @staticmethod
     def _to_dict_value(value: Any) -> Any:
@@ -124,6 +128,7 @@ class Base(DeclarativeBase):
         await cls._before_creation(session, data)
         item = cls(**data)
         session.add(item)
+        await session.flush()
         await item._after_creation(session, data)
         return item
 
@@ -142,11 +147,10 @@ class Base(DeclarativeBase):
     @classmethod
     async def update(cls, session: AsyncSession, item_id: int, data: DictStrAny) -> 'Base':
         item = await cls.get_by_id(session, item_id)
-        if item is None:
-            raise Exception('item not found')
         await item._before_update(session, data)
         item._update_simple_fields(data)
         session.add(item)
+        await session.flush()
         await item._after_update(session, data)
         return item
 
@@ -156,7 +160,6 @@ class Base(DeclarativeBase):
     @classmethod
     async def delete(cls, session: AsyncSession, item_id: int) -> 'Base':
         item = await cls.get_by_id(session, item_id)
-        if item is None:
-            raise Exception('item not found')
         await session.delete(item)
+        await session.flush()
         return item

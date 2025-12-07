@@ -15,3 +15,23 @@ from .tag import Tag
 from .teacher import Teacher
 from .user import User
 from .user_tag import UserTag
+
+__all__ = [
+    "Cohort",
+    "Course",
+    "CourseTag",
+    "Faculty",
+    "Group",
+    "PlannedCourse",
+    "Prerequisite",
+    "Program",
+    "Semester",
+    "Specialization",
+    "Stream",
+    "Student",
+    "StudentStream",
+    "Tag",
+    "Teacher",
+    "User",
+    "UserTag",
+]
