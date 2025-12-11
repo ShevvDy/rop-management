@@ -9,7 +9,7 @@ from ..schemas import TagCreate, TagUpdate, TagResponse
 router = APIRouter(prefix="/tag", tags=["tag"])
 
 
-@router.post("/", response_model=TagResponse, status_code=status.HTTP_201_CREATED)
+@router.post("", response_model=TagResponse, status_code=status.HTTP_201_CREATED)
 async def create_tag(
     tag: TagCreate,
     db: AsyncSession = Depends(get_session)
@@ -21,7 +21,7 @@ async def create_tag(
     return db_tag
 
 
-@router.get("/", response_model=List[TagResponse])
+@router.get("", response_model=List[TagResponse])
 async def get_tags(
     skip: int = 0,
     limit: int = 100,
@@ -40,7 +40,7 @@ async def get_tag(
     return await Tag.get_by_id(db, tag_id)
 
 
-@router.patch("/{tag_id}", response_model=TagResponse)
+@router.put("/{tag_id}", response_model=TagResponse)
 async def update_tag(
     tag_id: int,
     tag_update: TagUpdate,

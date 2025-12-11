@@ -6,6 +6,7 @@ from fastapi import FastAPI
 from .exceptions import init_exceptions
 from .models import disconnect_db, init_db
 from .routers import init_routers
+from .settings import settings
 
 
 @asynccontextmanager
@@ -21,7 +22,9 @@ def init_app() -> FastAPI:
         title="API приложения для управления образовательной программой",
         description="API для управления учебными программами",
         version="1.0.0",
-        lifespan=lifespan
+        lifespan=lifespan,
+        root_path="/api/v1",
+        docs_url=settings.DOCS_URL,
     )
 
     init_exceptions(app)

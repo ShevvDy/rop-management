@@ -9,6 +9,7 @@ class Faculty(Base):
 
     faculty_id = Column(BigInteger, primary_key=True)
     name = Column(String, nullable=False, unique=True)
+    short_name = Column(VARCHAR(10), nullable=False, unique=True)
     created_at = Column(DateTime, default=Base.now)
 
     programs = relationship(
@@ -17,4 +18,5 @@ class Faculty(Base):
         uselist=True,
         back_populates="faculty",
         order_by="Program.program_id",
+        cascade="all, delete-orphan",
     )

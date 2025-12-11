@@ -8,7 +8,7 @@ from ..schemas import ProgramCreate, ProgramUpdate, ProgramResponse
 router = APIRouter(prefix="/program", tags=["program"])
 
 
-@router.post("/", response_model=ProgramResponse, status_code=status.HTTP_201_CREATED)
+@router.post("", response_model=ProgramResponse, status_code=status.HTTP_201_CREATED)
 async def create_program(
     program: ProgramCreate,
     db: AsyncSession = Depends(get_session)
@@ -20,7 +20,7 @@ async def create_program(
     return db_program
 
 
-@router.get("/", response_model=list[ProgramResponse])
+@router.get("", response_model=list[ProgramResponse])
 async def get_programs(
     skip: int = 0,
     limit: int = 100,
@@ -39,7 +39,7 @@ async def get_program(
     return await Program.get_by_id(db, program_id)
 
 
-@router.patch("/{program_id}", response_model=ProgramResponse)
+@router.put("/{program_id}", response_model=ProgramResponse)
 async def update_program(
     program_id: int,
     program_update: ProgramUpdate,

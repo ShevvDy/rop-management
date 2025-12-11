@@ -14,33 +14,34 @@ class Cohort(Base):
     manager_id = Column(ForeignKey("user.user_id", ondelete="SET NULL"), nullable=True)
 
     program = relationship(
-        "Program", foreign_keys=[program_id], uselist=False, lazy="selectin", back_populates="cohorts"
+        "Program", foreign_keys=[program_id], uselist=False, back_populates="cohorts"
     )
     specializations = relationship(
         "Specialization",
         foreign_keys="[Specialization.cohort_id]",
         uselist=True,
         back_populates="cohort",
-        lazy="selectin",
         order_by="Specialization.name",
+        cascade="all, delete-orphan",
     )
     education_plan = relationship(
         "PlannedCourse",
         foreign_keys="[PlannedCourse.cohort_id]",
         uselist=True,
         back_populates="cohort",
-        lazy="selectin",
         order_by="PlannedCourse.semester_id",
+        cascade="all, delete-orphan",
     )
     director = relationship(
-        "User", foreign_keys=[director_id], uselist=False, lazy="selectin", back_populates="directed_cohorts"
+        "User", foreign_keys=[director_id], uselist=False, back_populates="directed_cohorts"
     )
     manager = relationship(
-        "User", foreign_keys=[manager_id], uselist=False, lazy="selectin", back_populates="managed_cohorts"
+        "User", foreign_keys=[manager_id], uselist=False, back_populates="managed_cohorts"
     )
     students = relationship(
         "Student",
         foreign_keys="[Student.cohort_id]",
         uselist=True,
         back_populates="cohort",
+        cascade="all, delete-orphan",
     )

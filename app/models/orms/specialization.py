@@ -12,7 +12,7 @@ class Specialization(Base):
     name = Column(String, nullable=False, unique=True)
 
     cohort = relationship(
-        "Cohort", foreign_keys=[cohort_id], uselist=False, lazy="selectin", back_populates="specializations"
+        "Cohort", foreign_keys=[cohort_id], uselist=False, back_populates="specializations"
     )
     education_plan = relationship(
         "PlannedCourse",
@@ -24,8 +24,8 @@ class Specialization(Base):
             )
         )""",
         uselist=True,
-        lazy="selectin",
         order_by="PlannedCourse.semester_id",
+        cascade="all, delete-orphan",
     )
     groups = relationship(
         "Group",

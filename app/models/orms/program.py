@@ -18,7 +18,7 @@ class Program(Base):
     faculty_id = Column(ForeignKey("faculty.faculty_id", ondelete="CASCADE"), nullable=False)
 
     faculty = relationship(
-        "Faculty", foreign_keys=[faculty_id], uselist=False, lazy="selectin", back_populates="tracks"
+        "Faculty", foreign_keys=[faculty_id], uselist=False, back_populates="programs"
     )
     cohorts = relationship(
         "Cohort",
@@ -26,6 +26,7 @@ class Program(Base):
         uselist=True,
         back_populates="program",
         order_by="Cohort.cohort_year",
+        cascade="all, delete-orphan",
     )
     groups = relationship(
         "Group",
@@ -33,4 +34,5 @@ class Program(Base):
         uselist=True,
         back_populates="program",
         order_by="Group.name",
+        cascade="all, delete-orphan",
     )

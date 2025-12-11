@@ -16,5 +16,5 @@ class Teacher(Base):
     position = Column(Enum(TeacherPosition), nullable=False)
 
     user = relationship(
-        "User", foreign_keys=[user_id], uselist=False, lazy="selectin", back_populates="teacher_data"
+        "User", foreign_keys=[user_id], uselist=False, back_populates="teacher_data"
     )

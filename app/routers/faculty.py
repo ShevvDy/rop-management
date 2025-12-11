@@ -9,7 +9,7 @@ from ..schemas import FacultyCreate, FacultyUpdate, FacultyResponse
 router = APIRouter(prefix="/faculty", tags=["faculty"])
 
 
-@router.post("/", response_model=FacultyResponse, status_code=status.HTTP_201_CREATED)
+@router.post("", response_model=FacultyResponse, status_code=status.HTTP_201_CREATED)
 async def create_faculty(
     faculty: FacultyCreate,
     db: AsyncSession = Depends(get_session)
@@ -21,7 +21,7 @@ async def create_faculty(
     return db_faculty
 
 
-@router.get("/", response_model=List[FacultyResponse])
+@router.get("", response_model=List[FacultyResponse])
 async def get_faculties(
     skip: int = 0,
     limit: int = 100,
@@ -40,7 +40,7 @@ async def get_faculty(
     return await Faculty.get_by_id(db, faculty_id)
 
 
-@router.patch("/{faculty_id}", response_model=FacultyResponse)
+@router.put("/{faculty_id}", response_model=FacultyResponse)
 async def update_faculty(
     faculty_id: int,
     faculty_update: FacultyUpdate,

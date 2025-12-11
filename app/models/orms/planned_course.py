@@ -11,7 +11,7 @@ class PlannedCourse(Base):
     cohort_id = Column(ForeignKey("cohort.cohort_id", ondelete="CASCADE"), nullable=False)
     specialization_id = Column(ForeignKey("specialization.specialization_id", ondelete="CASCADE"), nullable=True)
     course_id = Column(ForeignKey("course.course_id", ondelete="CASCADE"), nullable=False)
-    semester_id = Column(ForeignKey("semester.semester_id"), nullable=False)
+    semester_id = Column(ForeignKey("semester.semester_id", ondelete="CASCADE"), nullable=False)
 
     cohort = relationship(
         "Cohort", foreign_keys=[cohort_id], uselist=False, lazy="selectin", back_populates="education_plan"

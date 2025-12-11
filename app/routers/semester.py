@@ -9,7 +9,7 @@ from ..schemas import SemesterCreate, SemesterUpdate, SemesterResponse
 router = APIRouter(prefix="/semester", tags=["semester"])
 
 
-@router.post("/", response_model=SemesterResponse, status_code=status.HTTP_201_CREATED)
+@router.post("", response_model=SemesterResponse, status_code=status.HTTP_201_CREATED)
 async def create_semester(
     semester: SemesterCreate,
     db: AsyncSession = Depends(get_session)
@@ -21,7 +21,7 @@ async def create_semester(
     return db_semester
 
 
-@router.get("/", response_model=List[SemesterResponse])
+@router.get("", response_model=List[SemesterResponse])
 async def get_semesters(
     skip: int = 0,
     limit: int = 100,
@@ -40,7 +40,7 @@ async def get_semester(
     return await Semester.get_by_id(db, semester_id)
 
 
-@router.patch("/{semester_id}", response_model=SemesterResponse)
+@router.put("/{semester_id}", response_model=SemesterResponse)
 async def update_semester(
     semester_id: int,
     semester_update: SemesterUpdate,

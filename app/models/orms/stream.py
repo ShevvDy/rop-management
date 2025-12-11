@@ -17,9 +17,9 @@ class Stream(Base):
     start_date = Column(Date, nullable=False)
     exam_date = Column(Date, nullable=True)
 
-    course = relationship("Course", foreign_keys=[course_id], uselist=False, lazy="selectin")
+    course = relationship("Course", foreign_keys=[course_id], uselist=False)
     teacher = relationship(
-        "User", foreign_keys=[teacher_id], uselist=False, lazy="selectin", back_populates="teacher_streams"
+        "User", foreign_keys=[teacher_id], uselist=False, back_populates="teacher_streams"
     )
     students = relationship(
         "Student",
@@ -27,7 +27,6 @@ class Stream(Base):
         foreign_keys="[StudentStream.student_id, StudentStream.stream_id]",
         uselist=True,
         back_populates="streams",
-        lazy="selectin",
     )
 
     @property

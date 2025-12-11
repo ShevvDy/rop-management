@@ -19,10 +19,9 @@ class Course(Base):
 
     prerequisites = relationship(
         "Course",
-        secondary="Prerequisite",
-        foreign_keys="[Prerequisites.course_id, Prerequisites.prerequisite_id]",
+        secondary="prerequisite",
+        foreign_keys="[Prerequisite.course_id, Prerequisite.prerequisite_id]",
         uselist=True,
-        lazy="selectin",
     )
     tags = relationship(
         "Tag",
@@ -30,6 +29,5 @@ class Course(Base):
         foreign_keys="[CourseTag.course_id, CourseTag.tag_id]",
         uselist=True,
         back_populates="courses",
-        lazy="selectin",
         order_by="Tag.name",
     )

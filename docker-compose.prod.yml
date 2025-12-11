@@ -1,0 +1,10 @@
+services:
+  app:
+    build: .
+    depends_on:
+      - db
+    environment:
+      HOST: ${HOST}
+      PORT: ${PORT}
+      DB_URL: ${DB_URL}
+      ISU_API_KEY: ${ISU_API_KEY}

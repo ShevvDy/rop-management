@@ -9,25 +9,25 @@ from ..schemas import CohortCreate, CohortUpdate, CohortResponse
 router = APIRouter(prefix="/cohort", tags=["cohort"])
 
 
-@router.post("/", response_model=CohortResponse, status_code=status.HTTP_201_CREATED)
+@router.post("", response_model=CohortResponse, status_code=status.HTTP_201_CREATED)
 async def create_cohort(
     cohort: CohortCreate,
     db: AsyncSession = Depends(get_session)
 ):
-    """Создать новую когорту"""
+    """Создать новый поток по учебному году"""
     db_cohort = await Cohort.create(db, cohort.model_dump())
     await db.commit()
     await db.refresh(db_cohort)
     return db_cohort
 
 
-@router.get("/", response_model=List[CohortResponse])
+@router.get("", response_model=List[CohortResponse])
 async def get_cohorts(
     skip: int = 0,
     limit: int = 100,
     db: AsyncSession = Depends(get_session)
 ):
-    """Получить список всех когорт"""
+    """Получить список всех потоков по учебным годам"""
     return await Cohort.get_list(db, skip=skip, limit=limit)
 
 
@@ -36,17 +36,17 @@ async def get_cohort(
     cohort_id: int,
     db: AsyncSession = Depends(get_session)
 ):
-    """Получить когорту по ID"""
+    """Получить поток по учебному году по ID"""
     return await Cohort.get_by_id(db, cohort_id)
 
 
-@router.patch("/{cohort_id}", response_model=CohortResponse)
+@router.put("/{cohort_id}", response_model=CohortResponse)
 async def update_cohort(
     cohort_id: int,
     cohort_update: CohortUpdate,
     db: AsyncSession = Depends(get_session)
 ):
-    """Обновить данные когорты"""
+    """Обновить данные потока по учебному году"""
     cohort = await Cohort.update(
         db,
         cohort_id,
@@ -62,7 +62,7 @@ async def delete_cohort(
     cohort_id: int,
     db: AsyncSession = Depends(get_session)
 ):
-    """Удалить когорту"""
+    """Удалить поток по учебному году"""
     await Cohort.delete(db, cohort_id)
     await db.commit()
 

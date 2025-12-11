@@ -9,7 +9,7 @@ from ..schemas import UserCreate, UserUpdate, UserResponse
 router = APIRouter(prefix="/user", tags=["user"])
 
 
-@router.post("/", response_model=UserResponse, status_code=status.HTTP_201_CREATED)
+@router.post("", response_model=UserResponse, status_code=status.HTTP_201_CREATED)
 async def create_user(
     user: UserCreate,
     db: AsyncSession = Depends(get_session)
@@ -21,7 +21,7 @@ async def create_user(
     return db_user
 
 
-@router.get("/", response_model=List[UserResponse])
+@router.get("", response_model=List[UserResponse])
 async def get_users(
     skip: int = 0,
     limit: int = 100,
@@ -40,7 +40,7 @@ async def get_user(
     return await User.get_by_id(db, user_id)
 
 
-@router.patch("/{user_id}", response_model=UserResponse)
+@router.put("/{user_id}", response_model=UserResponse)
 async def update_user(
     user_id: int,
     user_update: UserUpdate,

@@ -9,7 +9,7 @@ from ..schemas import StreamCreate, StreamUpdate, StreamResponse
 router = APIRouter(prefix="/stream", tags=["stream"])
 
 
-@router.post("/", response_model=StreamResponse, status_code=status.HTTP_201_CREATED)
+@router.post("", response_model=StreamResponse, status_code=status.HTTP_201_CREATED)
 async def create_stream(
     stream: StreamCreate,
     db: AsyncSession = Depends(get_session)
@@ -21,7 +21,7 @@ async def create_stream(
     return db_stream
 
 
-@router.get("/", response_model=List[StreamResponse])
+@router.get("", response_model=List[StreamResponse])
 async def get_streams(
     skip: int = 0,
     limit: int = 100,
@@ -40,7 +40,7 @@ async def get_stream(
     return await Stream.get_by_id(db, stream_id)
 
 
-@router.patch("/{stream_id}", response_model=StreamResponse)
+@router.put("/{stream_id}", response_model=StreamResponse)
 async def update_stream(
     stream_id: int,
     stream_update: StreamUpdate,

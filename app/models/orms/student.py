@@ -17,13 +17,13 @@ class Student(Base):
     status = Column(Enum(StudentStatus), nullable=True)
 
     user = relationship(
-        "User", foreign_keys=[user_id], uselist=False, lazy="selectin", back_populates="student_data"
+        "User", foreign_keys=[user_id], uselist=False, back_populates="student_data"
     )
     cohort = relationship(
-        "Cohort", foreign_keys=[cohort_id], uselist=False, lazy="selectin", back_populates="students"
+        "Cohort", foreign_keys=[cohort_id], uselist=False, back_populates="students"
     )
     group = relationship(
-        "Group", foreign_keys=[group_id], uselist=False, lazy="selectin", back_populates="students"
+        "Group", foreign_keys=[group_id], uselist=False, back_populates="students"
     )
     streams = relationship(
         "Stream",
@@ -31,7 +31,6 @@ class Student(Base):
         foreign_keys="[StudentStream.stream_id, StudentStream.student_id]",
         uselist=True,
         back_populates="students",
-        lazy="selectin",
     )
 
     @property

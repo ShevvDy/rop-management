@@ -9,7 +9,7 @@ from ..schemas import SpecializationCreate, SpecializationUpdate, Specialization
 router = APIRouter(prefix="/specialization", tags=["specialization"])
 
 
-@router.post("/", response_model=SpecializationResponse, status_code=status.HTTP_201_CREATED)
+@router.post("", response_model=SpecializationResponse, status_code=status.HTTP_201_CREATED)
 async def create_specialization(
     specialization: SpecializationCreate,
     db: AsyncSession = Depends(get_session)
@@ -21,7 +21,7 @@ async def create_specialization(
     return db_specialization
 
 
-@router.get("/", response_model=List[SpecializationResponse])
+@router.get("", response_model=List[SpecializationResponse])
 async def get_specializations(
     skip: int = 0,
     limit: int = 100,
@@ -40,7 +40,7 @@ async def get_specialization(
     return await Specialization.get_by_id(db, specialization_id)
 
 
-@router.patch("/{specialization_id}", response_model=SpecializationResponse)
+@router.put("/{specialization_id}", response_model=SpecializationResponse)
 async def update_specialization(
     specialization_id: int,
     specialization_update: SpecializationUpdate,
