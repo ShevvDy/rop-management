@@ -1,6 +1,5 @@
-from pydantic import BaseModel, Field, EmailStr
-from typing import Optional
-from datetime import datetime
+from pydantic import BaseModel, Field, EmailStr, ConfigDict
+from typing import Optional, ClassVar
 
 
 class UserBase(BaseModel):
@@ -29,6 +28,24 @@ class UserUpdate(BaseModel):
 
 class UserResponse(UserBase):
     user_id: int
+    model_config = ConfigDict(from_attributes=True)
 
-    class Config:
-        from_attributes = True
+
+class UserWithRelations(UserResponse):
+    from .student import StudentResponse
+    from .teacher import TeacherResponse
+    from .cohort import CohortResponse
+    from .tag import TagResponse
+    from .stream import StreamResponse
+    StudentResponse: ClassVar
+    TeacherResponse: ClassVar
+    CohortResponse: ClassVar
+    TagResponse: ClassVar
+    StreamResponse: ClassVar
+
+    student_data: list[StudentResponse] = Field(default=[], description="Данные студента")
+    teacher_data: list[TeacherResponse] = Field(default=[], description="Данные преподавателя")
+    directed_cohorts: list[CohortResponse] = Field(default=[], description="Наборы, которыми руководит")
+    managed_cohorts: list[CohortResponse] = Field(default=[], description="Наборы, которые менеджерит")
+    tags: list[TagResponse] = Field(default=[], description="Теги пользователя")
+    teacher_streams: list[StreamResponse] = Field(default=[], description="Потоки, которые ведёт как преподаватель")

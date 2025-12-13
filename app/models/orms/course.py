@@ -12,7 +12,7 @@ class Course(Base):
     name = Column(String, nullable=False)
     code = Column(String, nullable=False)
     credits = Column(Integer, nullable=False)
-    form = Column(Enum(EducationForm), nullable=False, default=EducationForm.offline)
+    form = Column(Enum(EducationForm, name='education_form'), nullable=False, default=EducationForm.offline)
     is_elective = Column(Boolean, nullable=False, default=False)
     syllabus_link = Column(String, nullable=True)
     rpd_link = Column(String, nullable=True)
@@ -20,7 +20,8 @@ class Course(Base):
     prerequisites = relationship(
         "Course",
         secondary="prerequisite",
-        foreign_keys="[Prerequisite.course_id, Prerequisite.prerequisite_id]",
+        primaryjoin="Course.course_id == Prerequisite.course_id",
+        secondaryjoin="Course.course_id == Prerequisite.prerequisite_id",
         uselist=True,
     )
     tags = relationship(

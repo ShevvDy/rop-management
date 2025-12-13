@@ -1,5 +1,5 @@
-from pydantic import BaseModel, Field
-from typing import Optional
+from pydantic import BaseModel, Field, ConfigDict
+from typing import Optional, ClassVar, List
 
 from ..models import EducationForm
 
@@ -30,6 +30,18 @@ class CourseUpdate(BaseModel):
 
 class CourseResponse(CourseBase):
     course_id: int
+    model_config = ConfigDict(from_attributes=True)
 
-    class Config:
-        from_attributes = True
+
+class CourseWithRelations(CourseResponse):
+    from .tag import TagResponse
+    TagResponse: ClassVar
+
+    class Prerequisite(BaseModel):
+        course_id: int
+        name: str = Field(..., description="Название курса-пререквизита")
+        code: str = Field(..., description="Код курса-пререквизита")
+        model_config = ConfigDict(from_attributes=True)
+
+    prerequisites: List[Prerequisite] = Field(default=[], description="Список курсов-пререквизитов")
+    tags: List[TagResponse] = Field(default=[], description="Список тегов курса")

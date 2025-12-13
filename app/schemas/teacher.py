@@ -1,5 +1,5 @@
-from pydantic import BaseModel, Field
-from typing import Optional
+from pydantic import BaseModel, Field, ConfigDict
+from typing import Optional, ClassVar
 from datetime import date
 
 from ..models.enums import TeacherPosition
@@ -27,6 +27,14 @@ class TeacherUpdate(BaseModel):
 
 class TeacherResponse(TeacherBase):
     teacher_id: int
+    model_config = ConfigDict(from_attributes=True)
 
-    class Config:
-        from_attributes = True
+
+class TeacherWithRelations(TeacherResponse):
+    from .user import UserResponse
+    from .faculty import FacultyResponse
+    UserResponse: ClassVar
+    FacultyResponse: ClassVar
+
+    user: UserResponse = Field(..., description="Данные пользователя")
+    faculty: FacultyResponse = Field(..., description="Факультет")

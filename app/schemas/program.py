@@ -1,5 +1,5 @@
-from pydantic import BaseModel, Field
-from typing import Optional
+from pydantic import BaseModel, Field, ConfigDict
+from typing import Optional, ClassVar
 
 from ..models import EducationForm, EducationLevel, EducationLang
 
@@ -30,6 +30,24 @@ class ProgramUpdate(BaseModel):
 
 class ProgramResponse(ProgramBase):
     program_id: int
+    model_config = ConfigDict(from_attributes=True)
 
-    class Config:
-        from_attributes = True
+
+class ProgramWithRelations(ProgramResponse):
+    from .cohort import CohortResponse
+    from .faculty import FacultyResponse
+    from .group import GroupResponse
+    CohortResponse: ClassVar
+    FacultyResponse: ClassVar
+    GroupResponse: ClassVar
+
+    class Cohort(CohortResponse):
+        program_id: int = Field(exclude=True)
+
+    class Group(GroupResponse):
+        program_id: int = Field(exclude=True)
+
+    faculty_id: int = Field(exclude=True)
+    faculty: FacultyResponse = Field(..., description="Факультет ОП")
+    cohorts: list[Cohort] = Field(..., description="Потоки по году набора")
+    groups: list[Group] = Field(..., description="Группы ОП")

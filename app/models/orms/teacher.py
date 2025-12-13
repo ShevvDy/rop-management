@@ -13,8 +13,11 @@ class Teacher(Base):
     faculty_id = Column(ForeignKey("faculty.faculty_id", ondelete="CASCADE"), nullable=False)
     start_date = Column(Date, nullable=False)
     end_date = Column(Date, nullable=True)
-    position = Column(Enum(TeacherPosition), nullable=False)
+    position = Column(Enum(TeacherPosition, name='teacher_position'), nullable=False)
 
     user = relationship(
         "User", foreign_keys=[user_id], uselist=False, back_populates="teacher_data"
+    )
+    faculty = relationship(
+        "Faculty", foreign_keys=[faculty_id], uselist=False, back_populates="teachers"
     )

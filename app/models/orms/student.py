@@ -14,7 +14,7 @@ class Student(Base):
     group_id = Column(ForeignKey("group.group_id", ondelete="SET NULL"), nullable=True)
     start_date = Column(Date, nullable=False, default=lambda: Base.today().replace(month=9, day=1))
     end_date = Column(Date, nullable=False)
-    status = Column(Enum(StudentStatus), nullable=True)
+    status = Column(Enum(StudentStatus, name='student_status'), nullable=True)
 
     user = relationship(
         "User", foreign_keys=[user_id], uselist=False, back_populates="student_data"

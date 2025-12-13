@@ -1,4 +1,4 @@
-from sqlalchemy import BigInteger, Column, ForeignKey, Integer, String
+from sqlalchemy import BigInteger, Column, ForeignKey, String
 from sqlalchemy.orm import relationship
 
 from ..base import Base
@@ -26,6 +26,7 @@ class Specialization(Base):
         uselist=True,
         order_by="PlannedCourse.semester_id",
         cascade="all, delete-orphan",
+        back_populates="specialization",
     )
     groups = relationship(
         "Group",

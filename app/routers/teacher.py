@@ -1,9 +1,10 @@
 from fastapi import APIRouter, Depends, status
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import selectinload
 from typing import List
 
 from ..models import Teacher, get_session
-from ..schemas import TeacherCreate, TeacherUpdate, TeacherResponse
+from ..schemas import TeacherCreate, TeacherUpdate, TeacherResponse, TeacherWithRelations
 
 
 router = APIRouter(prefix="/teacher", tags=["teacher"])
@@ -31,13 +32,18 @@ async def get_teachers(
     return await Teacher.get_list(db, skip=skip, limit=limit)
 
 
-@router.get("/{teacher_id}", response_model=TeacherResponse)
+@router.get("/{teacher_id}", response_model=TeacherWithRelations)
 async def get_teacher(
     teacher_id: int,
     db: AsyncSession = Depends(get_session)
 ):
     """Получить преподавателя по ID"""
-    return await Teacher.get_by_id(db, teacher_id)
+    return await Teacher.get_by_id(
+        db, teacher_id, load_relations=[
+            selectinload(Teacher.user),
+            selectinload(Teacher.faculty),
+        ]
+    )
 
 
 @router.put("/{teacher_id}", response_model=TeacherResponse)
@@ -65,4 +71,3 @@ async def delete_teacher(
     """Удалить преподавателя"""
     await Teacher.delete(db, teacher_id)
     await db.commit()
-

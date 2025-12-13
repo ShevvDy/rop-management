@@ -14,13 +14,10 @@ class PlannedCourse(Base):
     semester_id = Column(ForeignKey("semester.semester_id", ondelete="CASCADE"), nullable=False)
 
     cohort = relationship(
-        "Cohort", foreign_keys=[cohort_id], uselist=False, lazy="selectin", back_populates="education_plan"
+        "Cohort", foreign_keys=[cohort_id], uselist=False, back_populates="education_plan"
     )
     specialization = relationship(
-        "Specialization",
-        foreign_keys=[specialization_id],
-        uselist=False,
-        lazy="selectin",
+        "Specialization", foreign_keys=[specialization_id], uselist=False, back_populates="education_plan"
     )
-    course = relationship("Course", foreign_keys=[course_id], uselist=False, lazy="selectin")
-    semester = relationship("Semester", foreign_keys=[semester_id], uselist=False, lazy="selectin")
+    course = relationship("Course", foreign_keys=[course_id], uselist=False)
+    semester = relationship("Semester", foreign_keys=[semester_id], uselist=False)

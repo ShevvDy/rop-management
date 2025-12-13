@@ -1,10 +1,11 @@
 from fastapi import APIRouter, Depends, status
-from sqlalchemy.ext.asyncio import AsyncSession
 from typing import List
 
-from ..models import Faculty, get_session
-from ..schemas import FacultyCreate, FacultyUpdate, FacultyResponse
+from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import selectinload
 
+from ..models import Faculty, Program, get_session
+from ..schemas import FacultyCreate, FacultyUpdate, FacultyResponse, FacultyWithRelations
 
 router = APIRouter(prefix="/faculty", tags=["faculty"])
 
@@ -31,13 +32,18 @@ async def get_faculties(
     return await Faculty.get_list(db, skip=skip, limit=limit)
 
 
-@router.get("/{faculty_id}", response_model=FacultyResponse)
+@router.get("/{faculty_id}", response_model=FacultyWithRelations)
 async def get_faculty(
     faculty_id: int,
     db: AsyncSession = Depends(get_session)
 ):
     """Получить факультет по ID"""
-    return await Faculty.get_by_id(db, faculty_id)
+    return await Faculty.get_by_id(
+        db, faculty_id, load_relations=[
+            selectinload(Faculty.programs).selectinload(Program.cohorts),
+            selectinload(Faculty.teachers)
+        ]
+    )
 
 
 @router.put("/{faculty_id}", response_model=FacultyResponse)

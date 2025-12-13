@@ -1,9 +1,10 @@
 from fastapi import APIRouter, Depends, status
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import selectinload
 from typing import List
 
 from ..models import Student, get_session
-from ..schemas import StudentCreate, StudentUpdate, StudentResponse
+from ..schemas import StudentCreate, StudentUpdate, StudentResponse, StudentWithRelations
 
 
 router = APIRouter(prefix="/student", tags=["student"])
@@ -31,13 +32,20 @@ async def get_students(
     return await Student.get_list(db, skip=skip, limit=limit)
 
 
-@router.get("/{student_id}", response_model=StudentResponse)
+@router.get("/{student_id}", response_model=StudentWithRelations)
 async def get_student(
     student_id: int,
     db: AsyncSession = Depends(get_session)
 ):
     """Получить студента по ID"""
-    return await Student.get_by_id(db, student_id)
+    return await Student.get_by_id(
+        db, student_id, load_relations=[
+            selectinload(Student.user),
+            selectinload(Student.cohort),
+            selectinload(Student.group),
+            selectinload(Student.streams)
+        ]
+    )
 
 
 @router.put("/{student_id}", response_model=StudentResponse)
@@ -65,4 +73,3 @@ async def delete_student(
     """Удалить студента"""
     await Student.delete(db, student_id)
     await db.commit()
-

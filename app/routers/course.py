@@ -1,9 +1,10 @@
 from fastapi import APIRouter, Depends, status
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import selectinload
 from typing import List
 
 from ..models import Course, get_session
-from ..schemas import CourseCreate, CourseUpdate, CourseResponse
+from ..schemas import CourseCreate, CourseUpdate, CourseResponse, CourseWithRelations
 
 
 router = APIRouter(prefix="/course", tags=["course"])
@@ -31,13 +32,18 @@ async def get_courses(
     return await Course.get_list(db, skip=skip, limit=limit)
 
 
-@router.get("/{course_id}", response_model=CourseResponse)
+@router.get("/{course_id}", response_model=CourseWithRelations)
 async def get_course(
     course_id: int,
     db: AsyncSession = Depends(get_session)
 ):
     """Получить курс по ID"""
-    return await Course.get_by_id(db, course_id)
+    return await Course.get_by_id(
+        db, course_id, load_relations=[
+            selectinload(Course.prerequisites),
+            selectinload(Course.tags)
+        ]
+    )
 
 
 @router.put("/{course_id}", response_model=CourseResponse)
@@ -65,4 +71,3 @@ async def delete_course(
     """Удалить курс"""
     await Course.delete(db, course_id)
     await db.commit()
-

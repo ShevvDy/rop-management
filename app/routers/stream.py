@@ -1,9 +1,10 @@
 from fastapi import APIRouter, Depends, status
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import selectinload
 from typing import List
 
 from ..models import Stream, get_session
-from ..schemas import StreamCreate, StreamUpdate, StreamResponse
+from ..schemas import StreamCreate, StreamUpdate, StreamResponse, StreamWithRelations
 
 
 router = APIRouter(prefix="/stream", tags=["stream"])
@@ -31,13 +32,20 @@ async def get_streams(
     return await Stream.get_list(db, skip=skip, limit=limit)
 
 
-@router.get("/{stream_id}", response_model=StreamResponse)
+@router.get("/{stream_id}", response_model=StreamWithRelations)
 async def get_stream(
     stream_id: int,
     db: AsyncSession = Depends(get_session)
 ):
     """Получить поток по ID"""
-    return await Stream.get_by_id(db, stream_id)
+    return await Stream.get_by_id(
+        db, stream_id, load_relations=[
+            selectinload(Stream.semester),
+            selectinload(Stream.course),
+            selectinload(Stream.teacher),
+            selectinload(Stream.students)
+        ]
+    )
 
 
 @router.put("/{stream_id}", response_model=StreamResponse)
@@ -65,4 +73,3 @@ async def delete_stream(
     """Удалить поток"""
     await Stream.delete(db, stream_id)
     await db.commit()
-

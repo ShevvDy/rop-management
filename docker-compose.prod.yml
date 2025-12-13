@@ -1,6 +1,8 @@
 services:
   app:
     build: .
+    container_name: rop-management-api
+    restart: always
     depends_on:
       - db
     environment:

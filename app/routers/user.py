@@ -1,9 +1,10 @@
 from fastapi import APIRouter, Depends, status
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import selectinload
 from typing import List
 
 from ..models import User, get_session
-from ..schemas import UserCreate, UserUpdate, UserResponse
+from ..schemas import UserCreate, UserUpdate, UserResponse, UserWithRelations
 
 
 router = APIRouter(prefix="/user", tags=["user"])
@@ -31,13 +32,22 @@ async def get_users(
     return await User.get_list(db, skip=skip, limit=limit)
 
 
-@router.get("/{user_id}", response_model=UserResponse)
+@router.get("/{user_id}", response_model=UserWithRelations)
 async def get_user(
     user_id: int,
     db: AsyncSession = Depends(get_session)
 ):
     """Получить пользователя по ID"""
-    return await User.get_by_id(db, user_id)
+    return await User.get_by_id(
+        db, user_id, load_relations=[
+            selectinload(User.student_data),
+            selectinload(User.teacher_data),
+            selectinload(User.directed_cohorts),
+            selectinload(User.managed_cohorts),
+            selectinload(User.tags),
+            selectinload(User.teacher_streams)
+        ]
+    )
 
 
 @router.put("/{user_id}", response_model=UserResponse)
@@ -65,4 +75,3 @@ async def delete_user(
     """Удалить пользователя"""
     await User.delete(db, user_id)
     await db.commit()
-

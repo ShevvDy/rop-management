@@ -11,9 +11,9 @@ class Program(Base):
     program_id = Column(BigInteger, primary_key=True)
     name = Column(String, nullable=False, unique=True)
     accreditation_year = Column(Integer, nullable=False)
-    level = Column(Enum(EducationLevel), nullable=False)
-    form = Column(Enum(EducationForm), nullable=False, default=EducationForm.offline)
-    lang = Column(Enum(EducationLang), nullable=False)
+    level = Column(Enum(EducationLevel, name='education_level'), nullable=False)
+    form = Column(Enum(EducationForm, name='education_form'), nullable=False, default=EducationForm.offline)
+    lang = Column(Enum(EducationLang, name='education_lang'), nullable=False)
     duration_years = Column(Integer, nullable=False)
     faculty_id = Column(ForeignKey("faculty.faculty_id", ondelete="CASCADE"), nullable=False)
 

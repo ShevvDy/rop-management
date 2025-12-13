@@ -1,5 +1,5 @@
-from pydantic import BaseModel, Field
-from typing import Optional
+from pydantic import BaseModel, Field, ConfigDict
+from typing import Optional, ClassVar
 from datetime import date
 
 from ..models import EducationForm
@@ -31,6 +31,20 @@ class StreamUpdate(BaseModel):
 
 class StreamResponse(StreamBase):
     stream_id: int
+    model_config = ConfigDict(from_attributes=True)
 
-    class Config:
-        from_attributes = True
+
+class StreamWithRelations(StreamResponse):
+    from .semester import SemesterResponse
+    from .course import CourseResponse
+    from .teacher import TeacherResponse
+    from .student import StudentResponse
+    SemesterResponse: ClassVar
+    CourseResponse: ClassVar
+    TeacherResponse: ClassVar
+    StudentResponse: ClassVar
+
+    semester: SemesterResponse = Field(..., description="Семестр")
+    course: CourseResponse = Field(..., description="Курс")
+    teacher: Optional[TeacherResponse] = Field(None, description="Преподаватель")
+    students: list[StudentResponse] = Field(default=[], description="Список студентов потока")

@@ -1,9 +1,10 @@
 from fastapi import APIRouter, Depends, status
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import selectinload
 from typing import List
 
 from ..models import Group, get_session
-from ..schemas import GroupCreate, GroupUpdate, GroupResponse
+from ..schemas import GroupCreate, GroupUpdate, GroupResponse, GroupWithRelations
 
 
 router = APIRouter(prefix="/group", tags=["group"])
@@ -31,13 +32,19 @@ async def get_groups(
     return await Group.get_list(db, skip=skip, limit=limit)
 
 
-@router.get("/{group_id}", response_model=GroupResponse)
+@router.get("/{group_id}", response_model=GroupWithRelations)
 async def get_group(
     group_id: int,
     db: AsyncSession = Depends(get_session)
 ):
     """Получить группу по ID"""
-    return await Group.get_by_id(db, group_id)
+    return await Group.get_by_id(
+        db, group_id, load_relations=[
+            selectinload(Group.program),
+            selectinload(Group.specialization),
+            selectinload(Group.students)
+        ]
+    )
 
 
 @router.put("/{group_id}", response_model=GroupResponse)
@@ -65,4 +72,3 @@ async def delete_group(
     """Удалить группу"""
     await Group.delete(db, group_id)
     await db.commit()
-

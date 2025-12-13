@@ -5,6 +5,7 @@ from typing import Optional, Any
 from sqlalchemy import Column, Table, select, and_, inspect
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import DeclarativeBase
+from sqlalchemy.orm.strategy_options import _AbstractLoad
 
 from ..exceptions import NotFoundException
 from ..utils.types import WhereClause, DictStrAny
@@ -48,13 +49,17 @@ class Base(DeclarativeBase):
         return getattr(self, self.get_pk_name())
 
     @classmethod
-    async def get_by_id(cls, session: AsyncSession, item_id: int) -> Optional['Base']:
+    async def get_by_id(
+        cls, session: AsyncSession, item_id: int, load_relations: list[_AbstractLoad] = None
+    ) -> Optional['Base']:
         query = select(cls).where(cls.get_pk_column() == item_id)  # noqa F821
+        if load_relations:
+            query = query.options(*load_relations)
         result = await session.execute(query)
         item = result.scalars().first()
         if item is None:
             raise NotFoundException(f'{cls.__tablename__} с id {item_id} не найден')
-        return item
+        return item  # noqa F821
 
     @staticmethod
     def _to_dict_value(value: Any) -> Any:
@@ -92,18 +97,13 @@ class Base(DeclarativeBase):
         session: AsyncSession,
         skip: int = 0,
         limit: int | None = None,
-        join: list[tuple['Base', WhereClause]] | None = None,
-        outer_join: list[tuple['Base', WhereClause]] | None = None,
+        load_relations: list[_AbstractLoad]= None,
         order_by: list[Column] | None = None,
         filters: list[WhereClause] | None = None,
     ) -> list['Base']:
         query = select(cls)
-        if join is not None:
-            for j in join:
-                query = query.join(*j)
-        if outer_join is not None:
-            for j in outer_join:
-                query = query.outerjoin(*j)
+        if load_relations:
+            query = query.options(*load_relations)
         if filters is not None:
             query = query.where(and_(*filters))
         if order_by is None:

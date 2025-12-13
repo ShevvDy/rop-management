@@ -1,9 +1,10 @@
 from fastapi import APIRouter, Depends, status
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import selectinload
 from typing import List
 
 from ..models import Specialization, get_session
-from ..schemas import SpecializationCreate, SpecializationUpdate, SpecializationResponse
+from ..schemas import SpecializationCreate, SpecializationUpdate, SpecializationResponse, SpecializationWithRelations
 
 
 router = APIRouter(prefix="/specialization", tags=["specialization"])
@@ -31,13 +32,19 @@ async def get_specializations(
     return await Specialization.get_list(db, skip=skip, limit=limit)
 
 
-@router.get("/{specialization_id}", response_model=SpecializationResponse)
+@router.get("/{specialization_id}", response_model=SpecializationWithRelations)
 async def get_specialization(
     specialization_id: int,
     db: AsyncSession = Depends(get_session)
 ):
     """Получить специализацию по ID"""
-    return await Specialization.get_by_id(db, specialization_id)
+    return await Specialization.get_by_id(
+        db, specialization_id, load_relations=[
+            selectinload(Specialization.cohort),
+            selectinload(Specialization.education_plan),
+            selectinload(Specialization.groups)
+        ]
+    )
 
 
 @router.put("/{specialization_id}", response_model=SpecializationResponse)
@@ -65,4 +72,3 @@ async def delete_specialization(
     """Удалить специализацию"""
     await Specialization.delete(db, specialization_id)
     await db.commit()
-

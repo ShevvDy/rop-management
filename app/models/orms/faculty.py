@@ -20,3 +20,11 @@ class Faculty(Base):
         order_by="Program.program_id",
         cascade="all, delete-orphan",
     )
+    teachers = relationship(
+        "Teacher",
+        foreign_keys="[Teacher.faculty_id]",
+        uselist=True,
+        back_populates="faculty",
+        order_by="Teacher.teacher_id",
+        cascade="all, delete-orphan",
+    )

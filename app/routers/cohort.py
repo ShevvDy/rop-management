@@ -1,9 +1,11 @@
 from fastapi import APIRouter, Depends, status
-from sqlalchemy.ext.asyncio import AsyncSession
 from typing import List
 
-from ..models import Cohort, get_session
-from ..schemas import CohortCreate, CohortUpdate, CohortResponse
+from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import selectinload
+
+from ..models import Cohort, Program, get_session
+from ..schemas import CohortCreate, CohortUpdate, CohortResponse, CohortWithRelations
 
 
 router = APIRouter(prefix="/cohort", tags=["cohort"])
@@ -31,13 +33,23 @@ async def get_cohorts(
     return await Cohort.get_list(db, skip=skip, limit=limit)
 
 
-@router.get("/{cohort_id}", response_model=CohortResponse)
+@router.get("/{cohort_id}", response_model=CohortWithRelations)
 async def get_cohort(
     cohort_id: int,
     db: AsyncSession = Depends(get_session)
 ):
     """Получить поток по учебному году по ID"""
-    return await Cohort.get_by_id(db, cohort_id)
+    return await Cohort.get_by_id(
+        db,
+        cohort_id,
+        load_relations=[
+            selectinload(Cohort.program).selectinload(Program.faculty),
+            selectinload(Cohort.director),
+            selectinload(Cohort.manager),
+            selectinload(Cohort.specializations),
+            selectinload(Cohort.education_plan),
+        ],
+    )
 
 
 @router.put("/{cohort_id}", response_model=CohortResponse)
