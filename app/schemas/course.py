@@ -35,7 +35,9 @@ class CourseResponse(CourseBase):
 
 class CourseWithRelations(CourseResponse):
     from .tag import TagResponse
+    from .team import TeamResponse
     TagResponse: ClassVar
+    TeamResponse: ClassVar
 
     class Prerequisite(BaseModel):
         course_id: int
@@ -45,3 +47,4 @@ class CourseWithRelations(CourseResponse):
 
     prerequisites: List[Prerequisite] = Field(default=[], description="Список курсов-пререквизитов")
     tags: List[TagResponse] = Field(default=[], description="Список тегов курса")
+    teams: List[TeamResponse] = Field(default=[], description="Список команд, связанных с курсом")

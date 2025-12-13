@@ -40,6 +40,7 @@ async def get_stream(
     """Получить поток по ID"""
     return await Stream.get_by_id(
         db, stream_id, load_relations=[
+            selectinload(Stream.checkpoints),
             selectinload(Stream.semester),
             selectinload(Stream.course),
             selectinload(Stream.teacher),

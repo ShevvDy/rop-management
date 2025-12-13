@@ -1,3 +1,4 @@
+from .checkpoint import CheckpointCreate, CheckpointUpdate, CheckpointResponse, CheckpointWithRelations
 from .cohort import CohortCreate, CohortUpdate, CohortResponse, CohortWithRelations
 from .course import CourseCreate, CourseUpdate, CourseResponse, CourseWithRelations
 from .faculty import FacultyCreate, FacultyUpdate, FacultyResponse, FacultyWithRelations
@@ -10,9 +11,11 @@ from .stream import StreamCreate, StreamUpdate, StreamResponse, StreamWithRelati
 from .student import StudentCreate, StudentUpdate, StudentResponse, StudentWithRelations
 from .tag import TagCreate, TagUpdate, TagResponse
 from .teacher import TeacherCreate, TeacherUpdate, TeacherResponse, TeacherWithRelations
+from .team import TeamCreate, TeamUpdate, TeamResponse, TeamWithRelations
 from .user import UserCreate, UserUpdate, UserResponse, UserWithRelations
 
 __all__ = [
+    "CheckpointCreate", "CheckpointUpdate", "CheckpointResponse", "CheckpointWithRelations",
     "CohortCreate", "CohortUpdate", "CohortResponse", "CohortWithRelations",
     "CourseCreate", "CourseUpdate", "CourseResponse", "CourseWithRelations",
     "FacultyCreate", "FacultyUpdate", "FacultyResponse", "FacultyWithRelations",
@@ -25,5 +28,6 @@ __all__ = [
     "StudentCreate", "StudentUpdate", "StudentResponse", "StudentWithRelations",
     "TagCreate", "TagUpdate", "TagResponse",
     "TeacherCreate", "TeacherUpdate", "TeacherResponse", "TeacherWithRelations",
+    "TeamCreate", "TeamUpdate", "TeamResponse", "TeamWithRelations",
     "UserCreate", "UserUpdate", "UserResponse", "UserWithRelations",
 ]

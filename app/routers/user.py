@@ -45,7 +45,9 @@ async def get_user(
             selectinload(User.directed_cohorts),
             selectinload(User.managed_cohorts),
             selectinload(User.tags),
-            selectinload(User.teacher_streams)
+            selectinload(User.teacher_streams),
+            selectinload(User.owned_teams),
+            selectinload(User.teams),
         ]
     )
 

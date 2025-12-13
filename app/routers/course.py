@@ -41,7 +41,8 @@ async def get_course(
     return await Course.get_by_id(
         db, course_id, load_relations=[
             selectinload(Course.prerequisites),
-            selectinload(Course.tags)
+            selectinload(Course.tags),
+            selectinload(Course.teams),
         ]
     )
 

@@ -36,11 +36,13 @@ class UserWithRelations(UserResponse):
     from .teacher import TeacherResponse
     from .cohort import CohortResponse
     from .tag import TagResponse
+    from .team import TeamResponse
     from .stream import StreamResponse
     StudentResponse: ClassVar
     TeacherResponse: ClassVar
     CohortResponse: ClassVar
     TagResponse: ClassVar
+    TeamResponse: ClassVar
     StreamResponse: ClassVar
 
     student_data: list[StudentResponse] = Field(default=[], description="Данные студента")
@@ -49,3 +51,5 @@ class UserWithRelations(UserResponse):
     managed_cohorts: list[CohortResponse] = Field(default=[], description="Наборы, которые менеджерит")
     tags: list[TagResponse] = Field(default=[], description="Теги пользователя")
     teacher_streams: list[StreamResponse] = Field(default=[], description="Потоки, которые ведёт как преподаватель")
+    owned_teams: list[TeamResponse] = Field(default=[], description="Команды, которыми владеет")
+    teams: list[TeamResponse] = Field(default=[], description="Команды, в которых состоит")
