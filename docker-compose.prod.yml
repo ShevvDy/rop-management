@@ -4,7 +4,9 @@ services:
     container_name: rop-management-api
     restart: always
     depends_on:
-      - db
+      - postgres
+    ports:
+      - "${PORT}:${PORT}"
     environment:
       HOST: ${HOST}
       PORT: ${PORT}
