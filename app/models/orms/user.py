@@ -62,3 +62,18 @@ class User(Base):
         back_populates="teacher",
         order_by="Stream.name",
     )
+    owned_teams = relationship(
+        "Team",
+        foreign_keys="[Team.owner_id]",
+        uselist=True,
+        back_populates="owner",
+        order_by="Team.name",
+    )
+    teams = relationship(
+        "Team",
+        secondary="team_member",
+        foreign_keys="[TeamMember.user_id, TeamMember.team_id]",
+        uselist=True,
+        back_populates="members",
+        order_by="Team.name",
+    )

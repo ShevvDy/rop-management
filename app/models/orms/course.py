@@ -32,3 +32,11 @@ class Course(Base):
         back_populates="courses",
         order_by="Tag.name",
     )
+    teams = relationship(
+        "Team",
+        secondary="team_course",
+        foreign_keys="[TeamCourse.course_id, TeamCourse.team_id]",
+        uselist=True,
+        back_populates="courses",
+        order_by="Team.name",
+    )

@@ -29,6 +29,14 @@ class Stream(Base):
         uselist=True,
         back_populates="streams",
     )
+    checkpoints = relationship(
+        "Checkpoint",
+        foreign_keys="[Checkpoint.stream_id]",
+        uselist=True,
+        back_populates="stream",
+        order_by="Checkpoint.checkpoint_date",
+        cascade="all, delete-orphan",
+    )
 
     @property
     def is_active(self) -> bool:

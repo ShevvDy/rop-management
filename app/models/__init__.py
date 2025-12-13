@@ -17,6 +17,8 @@ __all__ = [
     "TeacherPosition",
     "StudentStatus",
     # orms
+    "Checkpoint",
+    "CheckpointTag",
     "Cohort",
     "Course",
     "CourseTag",
@@ -32,6 +34,10 @@ __all__ = [
     "StudentStream",
     "Tag",
     "Teacher",
+    "Team",
+    "TeamCourse",
+    "TeamMember",
+    "TeamTag",
     "User",
     "UserTag",
 ]
