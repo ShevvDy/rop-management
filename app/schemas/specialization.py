@@ -3,7 +3,6 @@ from typing import Optional, ClassVar
 
 
 class SpecializationBase(BaseModel):
-    cohort_id: int = Field(..., description="ID года набора")
     name: str = Field(..., description="Название специализации")
 
 
@@ -12,7 +11,6 @@ class SpecializationCreate(SpecializationBase):
 
 
 class SpecializationUpdate(BaseModel):
-    cohort_id: Optional[int] = Field(None, description="ID года набора")
     name: Optional[str] = Field(None, description="Название специализации")
 
 

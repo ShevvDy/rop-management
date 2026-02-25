@@ -4,16 +4,21 @@ from typing import AsyncGenerator
 from fastapi import FastAPI
 
 from .exceptions import init_exceptions
-from .models import disconnect_db, init_db
+from .models import init_neo4j_connection, close_neo4j_connection, init_neo4j_constraints
 from .routers import init_routers
 from .settings import settings
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI) -> AsyncGenerator:
-    await init_db()
+    # Инициализация Neo4j
+    init_neo4j_connection()
+    await init_neo4j_constraints()
+
     yield
-    await disconnect_db()
+
+    # Закрытие соединения с Neo4j
+    await close_neo4j_connection()
 
 
 def init_app() -> FastAPI:

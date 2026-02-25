@@ -1,9 +1,7 @@
-from fastapi import APIRouter, Depends, status
-from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy.orm import selectinload
+from fastapi import APIRouter, status
 from typing import List
 
-from ..models import Course, get_session
+from ..models import Course
 from ..schemas import CourseCreate, CourseUpdate, CourseResponse, CourseWithRelations
 
 
@@ -11,63 +9,36 @@ router = APIRouter(prefix="/course", tags=["course"])
 
 
 @router.post("", response_model=CourseResponse, status_code=status.HTTP_201_CREATED)
-async def create_course(
-    course: CourseCreate,
-    db: AsyncSession = Depends(get_session)
-):
+async def create_course(course: CourseCreate):
     """Создать новый курс"""
-    db_course = await Course.create(db, course.model_dump())
-    await db.commit()
-    await db.refresh(db_course)
-    return db_course
+    return await Course.create_node(course.model_dump())
 
 
 @router.get("", response_model=List[CourseResponse])
-async def get_courses(
-    skip: int = 0,
-    limit: int = 100,
-    db: AsyncSession = Depends(get_session)
-):
+async def get_courses(skip: int = 0, limit: int = 100):
     """Получить список всех курсов"""
-    return await Course.get_list(db, skip=skip, limit=limit)
+    return await Course.get_list(skip=skip, limit=limit)
 
 
 @router.get("/{course_id}", response_model=CourseWithRelations)
-async def get_course(
-    course_id: int,
-    db: AsyncSession = Depends(get_session)
-):
+async def get_course(course_id: int):
     """Получить курс по ID"""
-    return await Course.get_by_id(
-        db, course_id, load_relations=[
-            selectinload(Course.prerequisites),
-            selectinload(Course.tags)
-        ]
-    )
+    course = await Course.get_by_id(course_id)
 
+    # Загружаем связанные данные
+    await course.prerequisites.all()
+    await course.tags.all()
 
-@router.put("/{course_id}", response_model=CourseResponse)
-async def update_course(
-    course_id: int,
-    course_update: CourseUpdate,
-    db: AsyncSession = Depends(get_session)
-):
-    """Обновить данные курса"""
-    course = await Course.update(
-        db,
-        course_id,
-        course_update.model_dump(exclude_unset=True)
-    )
-    await db.commit()
-    await db.refresh(course)
     return course
 
 
+@router.put("/{course_id}", response_model=CourseResponse)
+async def update_course(course_id: int, course_update: CourseUpdate):
+    """Обновить данные курса"""
+    return await Course.update_node(course_id, course_update.model_dump(exclude_unset=True))
+
+
 @router.delete("/{course_id}", status_code=status.HTTP_204_NO_CONTENT)
-async def delete_course(
-    course_id: int,
-    db: AsyncSession = Depends(get_session)
-):
+async def delete_course(course_id: int):
     """Удалить курс"""
-    await Course.delete(db, course_id)
-    await db.commit()
+    await Course.delete_by_id(course_id)

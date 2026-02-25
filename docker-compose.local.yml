@@ -1,4 +1,5 @@
 services:
-  postgres:
+  neo4j:
     ports:
-      - "${DB_PORT}:5432"
+      - "${DB_UI_PORT}:7474"  # HTTP
+      - "${DB_PORT}:7687"  # Bolt

@@ -1,68 +1,40 @@
-from fastapi import APIRouter, Depends, status
-from sqlalchemy.ext.asyncio import AsyncSession
+from fastapi import APIRouter, status
 from typing import List
 
-from ..models import Tag, get_session
+from ..models import Tag
 from ..schemas import TagCreate, TagUpdate, TagResponse
-
 
 router = APIRouter(prefix="/tag", tags=["tag"])
 
 
 @router.post("", response_model=TagResponse, status_code=status.HTTP_201_CREATED)
-async def create_tag(
-    tag: TagCreate,
-    db: AsyncSession = Depends(get_session)
-):
+async def create_tag(tag: TagCreate):
     """Создать новый тег"""
-    db_tag = await Tag.create(db, tag.model_dump())
-    await db.commit()
-    await db.refresh(db_tag)
-    return db_tag
+    return await Tag.create_node(tag.model_dump())
 
 
 @router.get("", response_model=List[TagResponse])
-async def get_tags(
-    skip: int = 0,
-    limit: int = 100,
-    db: AsyncSession = Depends(get_session)
-):
+async def get_tags(skip: int = 0, limit: int = 100):
     """Получить список всех тегов"""
-    return await Tag.get_list(db, skip=skip, limit=limit)
+    return await Tag.get_list(skip=skip, limit=limit)
 
 
 @router.get("/{tag_id}", response_model=TagResponse)
-async def get_tag(
-    tag_id: int,
-    db: AsyncSession = Depends(get_session)
-):
+async def get_tag(tag_id: int):
     """Получить тег по ID"""
-    return await Tag.get_by_id(db, tag_id)
+    return await Tag.get_by_id(tag_id)
 
 
 @router.put("/{tag_id}", response_model=TagResponse)
-async def update_tag(
-    tag_id: int,
-    tag_update: TagUpdate,
-    db: AsyncSession = Depends(get_session)
-):
+async def update_tag(tag_id: int, tag_update: TagUpdate):
     """Обновить данные тега"""
-    tag = await Tag.update(
-        db,
+    return await Tag.update_node(
         tag_id,
         tag_update.model_dump(exclude_unset=True)
     )
-    await db.commit()
-    await db.refresh(tag)
-    return tag
 
 
 @router.delete("/{tag_id}", status_code=status.HTTP_204_NO_CONTENT)
-async def delete_tag(
-    tag_id: int,
-    db: AsyncSession = Depends(get_session)
-):
+async def delete_tag(tag_id: int):
     """Удалить тег"""
-    await Tag.delete(db, tag_id)
-    await db.commit()
-
+    await Tag.delete_by_id(tag_id)

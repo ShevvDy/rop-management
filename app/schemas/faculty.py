@@ -31,12 +31,8 @@ class FacultyWithRelations(FacultyResponse):
         from .cohort import CohortResponse
         CohortResponse: ClassVar
 
-        class Cohort(CohortResponse):
-            director_id: int = Field(exclude=True)
-            manager_id: int = Field(exclude=True)
-
         faculty_id: int = Field(exclude=True)
-        cohorts: list[Cohort] = Field(..., description="Список наборов по году")
+        cohorts: list[CohortResponse] = Field(..., description="Список наборов по году")
 
     programs: list[Program] = Field(..., description="Список образовательных программ факультета")
     teachers: list[TeacherResponse] = Field(default=[], description="Список преподавателей факультета")
