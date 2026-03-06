@@ -5,3 +5,27 @@ venv/
 __pycache__/
 *.pyc
 *.env
+
+# Client (frontend)
+client/logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+lerna-debug.log*
+
+client/node_modules
+client/dist
+client/dist-ssr
+*.local
+
+# Editor directories and files
+.vscode/*
+!.vscode/extensions.json
+.DS_Store
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
