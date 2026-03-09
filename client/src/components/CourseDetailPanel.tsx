@@ -159,7 +159,7 @@ const CourseEditModal: React.FC<CourseEditModalProps> = ({ course, onClose, onSa
                             </div>
                         </div>
                         <div className="edit-modal-field edit-modal-field--short">
-                            <label className="edit-modal-label">Кредиты</label>
+                            <label className="edit-modal-label">Часы</label>
                             <input
                                 className="edit-modal-input"
                                 type="number"
@@ -234,7 +234,7 @@ const CourseDetailPanel: React.FC<CourseDetailPanelProps> = ({ course, onClose, 
                                 {typeInfo.label}
                             </span>
                             <span className="detail-badge detail-badge-outline">
-                                {course.credits} КРЕДИТА
+                                {course.credits} ЧАСА
                             </span>
                         </div>
                         <h2 className="detail-panel-title">{course.name}</h2>

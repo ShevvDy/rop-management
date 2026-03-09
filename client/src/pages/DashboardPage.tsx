@@ -564,7 +564,7 @@ const DashboardPageInner: React.FC = () => {
                                     </select>
                                 </div>
                                 <div className="flow-dialog-field">
-                                    <label className="flow-dialog-label">КРЕДИТЫ</label>
+                                    <label className="flow-dialog-label">ЧАСЫ</label>
                                     <input
                                         className="flow-dialog-input"
                                         type="number"

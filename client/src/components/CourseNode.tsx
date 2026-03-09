@@ -70,7 +70,7 @@ function CourseNode({ data, selected }: NodeProps<CourseNodeType>) {
                     <circle cx="7" cy="7" r="6" stroke="#94A3B8" strokeWidth="1.2" />
                     <path d="M7 4v3l2 1" stroke="#94A3B8" strokeWidth="1.2" strokeLinecap="round" />
                 </svg>
-                <span className="flow-node-credits">{data.credits} Кредита</span>
+                <span className="flow-node-credits">{data.credits} Часа</span>
             </div>
 
             <Handle
