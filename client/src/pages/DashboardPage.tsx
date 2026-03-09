@@ -1,12 +1,20 @@
-import React, { useState, useCallback, useMemo } from 'react';
+import React, { useState, useCallback, useMemo, useRef, useEffect } from 'react';
 import {
     ReactFlow,
+    ReactFlowProvider,
     Background,
     Controls,
     useNodesState,
     useEdgesState,
+    useReactFlow,
+    addEdge,
+    BaseEdge,
+    EdgeLabelRenderer,
+    getSmoothStepPath,
     type Node,
     type Edge,
+    type EdgeProps,
+    type Connection,
 } from '@xyflow/react';
 import '@xyflow/react/dist/style.css';
 import CourseNode, { type CourseNodeData } from '../components/CourseNode';
@@ -264,38 +272,146 @@ const initialNodes: Node<CourseNodeData>[] = [
 ];
 
 const initialEdges: Edge[] = [
-    { id: 'e-cs101-cs201', source: 'cs101', target: 'cs201', type: 'smoothstep', animated: false, style: { stroke: '#CBD5E1', strokeWidth: 2 } },
-    { id: 'e-cs201-cs301', source: 'cs201', target: 'cs301', type: 'smoothstep', animated: false, style: { stroke: '#CBD5E1', strokeWidth: 2 } },
-    { id: 'e-cs201-cs302', source: 'cs201', target: 'cs302', type: 'smoothstep', animated: false, style: { stroke: '#CBD5E1', strokeWidth: 2 } },
-    { id: 'e-cs201-cs401', source: 'cs201', target: 'cs401', type: 'smoothstep', animated: false, style: { stroke: '#CBD5E1', strokeWidth: 2 } },
-    { id: 'e-mth101-mth202', source: 'mth101', target: 'mth202', type: 'smoothstep', animated: false, style: { stroke: '#CBD5E1', strokeWidth: 2 } },
-    { id: 'e-mth101-cs201', source: 'mth101', target: 'cs201', type: 'smoothstep', animated: false, style: { stroke: '#CBD5E1', strokeWidth: 2 } },
-    { id: 'e-mth202-cs401', source: 'mth202', target: 'cs401', type: 'smoothstep', animated: false, style: { stroke: '#CBD5E1', strokeWidth: 2 } },
+    { id: 'e-cs101-cs201', source: 'cs101', target: 'cs201', type: 'deletable', animated: false, style: { stroke: '#CBD5E1', strokeWidth: 2 } },
+    { id: 'e-cs201-cs301', source: 'cs201', target: 'cs301', type: 'deletable', animated: false, style: { stroke: '#CBD5E1', strokeWidth: 2 } },
+    { id: 'e-cs201-cs302', source: 'cs201', target: 'cs302', type: 'deletable', animated: false, style: { stroke: '#CBD5E1', strokeWidth: 2 } },
+    { id: 'e-cs201-cs401', source: 'cs201', target: 'cs401', type: 'deletable', animated: false, style: { stroke: '#CBD5E1', strokeWidth: 2 } },
+    { id: 'e-mth101-mth202', source: 'mth101', target: 'mth202', type: 'deletable', animated: false, style: { stroke: '#CBD5E1', strokeWidth: 2 } },
+    { id: 'e-mth101-cs201', source: 'mth101', target: 'cs201', type: 'deletable', animated: false, style: { stroke: '#CBD5E1', strokeWidth: 2 } },
+    { id: 'e-mth202-cs401', source: 'mth202', target: 'cs401', type: 'deletable', animated: false, style: { stroke: '#CBD5E1', strokeWidth: 2 } },
 ];
 
-const DashboardPage: React.FC = () => {
-    const [nodes, , onNodesChange] = useNodesState(initialNodes);
-    const [edges, , onEdgesChange] = useEdgesState(initialEdges);
+/* ── Deletable edge with ×-button on hover ── */
+const DeletableEdge: React.FC<EdgeProps> = ({
+    id, sourceX, sourceY, targetX, targetY, sourcePosition, targetPosition, style,
+}) => {
+    const { setEdges } = useReactFlow();
+    const [edgePath, labelX, labelY] = getSmoothStepPath({ sourceX, sourceY, sourcePosition, targetX, targetY, targetPosition });
+
+    return (
+        <>
+            <BaseEdge path={edgePath} style={style} />
+            <EdgeLabelRenderer>
+                <button
+                    className="edge-delete-btn"
+                    style={{
+                        position: 'absolute',
+                        transform: `translate(-50%, -50%) translate(${labelX}px,${labelY}px)`,
+                        pointerEvents: 'all',
+                    }}
+                    onClick={() => setEdges((eds) => eds.filter((e) => e.id !== id))}
+                >
+                    ×
+                </button>
+            </EdgeLabelRenderer>
+        </>
+    );
+};
+
+/* ── Add-node form default state ── */
+const defaultForm = { code: '', name: '', credits: 3, type: 'required' as CourseNodeData['type'], semester: '' };
+
+/* ── Inner component (has access to useReactFlow) ── */
+const DashboardPageInner: React.FC = () => {
+    const [nodes, setNodes, onNodesChange] = useNodesState(initialNodes);
+    const [edges, setEdges, onEdgesChange] = useEdgesState(initialEdges);
     const [selectedCourse, setSelectedCourse] = useState<CourseDetail | null>(null);
     const [details, setDetails] = useState(courseDetails);
+    const { screenToFlowPosition } = useReactFlow();
+
+    /* context menu */
+    const [menu, setMenu] = useState<{ x: number; y: number; flowX: number; flowY: number } | null>(null);
+    const menuRef = useRef<HTMLDivElement>(null);
+
+    /* add-node dialog */
+    const [dialog, setDialog] = useState(false);
+    const [pendingPos, setPendingPos] = useState({ x: 0, y: 0 });
+    const [form, setForm] = useState(defaultForm);
 
     const nodeTypes = useMemo(() => ({ courseNode: CourseNode }), []);
+    const edgeTypes = useMemo(() => ({ deletable: DeletableEdge }), []);
+
+    /* close context menu on outside click */
+    useEffect(() => {
+        if (!menu) return;
+        const handler = (e: MouseEvent) => {
+            if (menuRef.current && !menuRef.current.contains(e.target as Element)) {
+                setMenu(null);
+            }
+        };
+        document.addEventListener('mousedown', handler);
+        return () => document.removeEventListener('mousedown', handler);
+    }, [menu]);
 
     const onNodeClick = useCallback((_: React.MouseEvent, node: Node) => {
         const detail = details[node.id];
-        if (detail) {
-            setSelectedCourse(detail);
-        }
+        if (detail) setSelectedCourse(detail);
     }, [details]);
+
+    const onConnect = useCallback((connection: Connection) => {
+        setEdges((eds) => addEdge(
+            { ...connection, type: 'deletable', animated: false, style: { stroke: '#CBD5E1', strokeWidth: 2 } },
+            eds,
+        ));
+    }, [setEdges]);
 
     const onPaneClick = useCallback(() => {
         setSelectedCourse(null);
+        setMenu(null);
     }, []);
+
+    const onPaneContextMenu = useCallback((e: React.MouseEvent | MouseEvent) => {
+        e.preventDefault();
+        const flowPos = screenToFlowPosition({ x: e.clientX, y: e.clientY });
+        setMenu({ x: e.clientX, y: e.clientY, flowX: flowPos.x, flowY: flowPos.y });
+    }, [screenToFlowPosition]);
+
+    const openAddDialog = useCallback(() => {
+        if (!menu) return;
+        setPendingPos({ x: menu.flowX, y: menu.flowY });
+        setForm(defaultForm);
+        setMenu(null);
+        setDialog(true);
+    }, [menu]);
+
+    const handleAddNode = useCallback(() => {
+        if (!form.name.trim()) return;
+        const id = `course-${Date.now()}`;
+        const data: CourseNodeData = {
+            code: form.code.trim(),
+            name: form.name.trim(),
+            credits: form.credits,
+            type: form.type,
+            semester: form.semester.trim(),
+        };
+        const newNode: Node<CourseNodeData> = { id, type: 'courseNode', position: pendingPos, data };
+        const newDetail: CourseDetail = {
+            id,
+            code: data.code,
+            name: data.name,
+            semester: data.semester,
+            type: data.type,
+            credits: data.credits,
+            summary: '',
+            students: { avatars: [], total: 0 },
+            teachers: [],
+            materials: [],
+        };
+        setNodes((prev) => [...prev, newNode]);
+        setDetails((prev) => ({ ...prev, [id]: newDetail }));
+        setDialog(false);
+    }, [form, pendingPos, setNodes]);
 
     const handleSave = useCallback((updated: CourseDetail) => {
         setDetails((prev) => ({ ...prev, [updated.id]: updated }));
         setSelectedCourse(updated);
-    }, []);
+        setNodes((nds) => nds.map((n) =>
+            n.id !== updated.id ? n : {
+                ...n,
+                data: { ...n.data, code: updated.code, name: updated.name, credits: updated.credits, type: updated.type, semester: updated.semester },
+            }
+        ));
+    }, [setNodes]);
 
     return (
         <div className="dashboard-page">
@@ -372,8 +488,12 @@ const DashboardPage: React.FC = () => {
                     onNodesChange={onNodesChange}
                     onEdgesChange={onEdgesChange}
                     onNodeClick={onNodeClick}
+                    onConnect={onConnect}
                     onPaneClick={onPaneClick}
+                    onPaneContextMenu={onPaneContextMenu}
                     nodeTypes={nodeTypes}
+                    edgeTypes={edgeTypes}
+                    isValidConnection={(c) => c.source !== c.target}
                     fitView
                     fitViewOptions={{ padding: 0.3 }}
                     proOptions={{ hideAttribution: true }}
@@ -382,6 +502,102 @@ const DashboardPage: React.FC = () => {
                     <Controls showInteractive={false} />
                 </ReactFlow>
             </div>
+
+            {/* Context menu */}
+            {menu && (
+                <div
+                    ref={menuRef}
+                    className="flow-context-menu"
+                    style={{ top: menu.y, left: menu.x }}
+                >
+                    <button className="flow-context-menu-item" onClick={openAddDialog}>
+                        <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
+                            <path d="M7 2v10M2 7h10" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+                        </svg>
+                        Добавить предмет
+                    </button>
+                </div>
+            )}
+
+            {/* Add-node dialog */}
+            {dialog && (
+                <div className="flow-dialog-overlay" onClick={() => setDialog(false)}>
+                    <div className="flow-dialog" onClick={(e) => e.stopPropagation()}>
+                        <div className="flow-dialog-header">
+                            <span>Новый предмет</span>
+                            <button className="flow-dialog-close" onClick={() => setDialog(false)}>
+                                <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+                                    <path d="M3 3l10 10M13 3L3 13" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+                                </svg>
+                            </button>
+                        </div>
+
+                        <div className="flow-dialog-body">
+                            <label className="flow-dialog-label">НАЗВАНИЕ *</label>
+                            <input
+                                className="flow-dialog-input"
+                                placeholder="Например: Операционные системы"
+                                value={form.name}
+                                onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))}
+                                autoFocus
+                            />
+
+                            <label className="flow-dialog-label">КОД КУРСА</label>
+                            <input
+                                className="flow-dialog-input"
+                                placeholder="Например: CS-303"
+                                value={form.code}
+                                onChange={(e) => setForm((f) => ({ ...f, code: e.target.value }))}
+                            />
+
+                            <div className="flow-dialog-row">
+                                <div className="flow-dialog-field">
+                                    <label className="flow-dialog-label">ТИП</label>
+                                    <select
+                                        className="flow-dialog-select"
+                                        value={form.type}
+                                        onChange={(e) => setForm((f) => ({ ...f, type: e.target.value as CourseNodeData['type'] }))}
+                                    >
+                                        <option value="required">Обязательный</option>
+                                        <option value="elective">По выбору</option>
+                                        <option value="core">Базовый</option>
+                                    </select>
+                                </div>
+                                <div className="flow-dialog-field">
+                                    <label className="flow-dialog-label">КРЕДИТЫ</label>
+                                    <input
+                                        className="flow-dialog-input"
+                                        type="number"
+                                        min={1}
+                                        max={10}
+                                        value={form.credits}
+                                        onChange={(e) => setForm((f) => ({ ...f, credits: Number(e.target.value) }))}
+                                    />
+                                </div>
+                            </div>
+
+                            <label className="flow-dialog-label">СЕМЕСТР</label>
+                            <input
+                                className="flow-dialog-input"
+                                placeholder="Например: 3 семестр"
+                                value={form.semester}
+                                onChange={(e) => setForm((f) => ({ ...f, semester: e.target.value }))}
+                            />
+                        </div>
+
+                        <div className="flow-dialog-footer">
+                            <button className="flow-dialog-btn-cancel" onClick={() => setDialog(false)}>Отмена</button>
+                            <button
+                                className="flow-dialog-btn-submit"
+                                onClick={handleAddNode}
+                                disabled={!form.name.trim()}
+                            >
+                                Добавить
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
 
             {/* Detail panel */}
             {selectedCourse && (
@@ -394,5 +610,11 @@ const DashboardPage: React.FC = () => {
         </div>
     );
 };
+
+const DashboardPage: React.FC = () => (
+    <ReactFlowProvider>
+        <DashboardPageInner />
+    </ReactFlowProvider>
+);
 
 export default DashboardPage;

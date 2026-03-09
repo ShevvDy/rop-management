@@ -1218,6 +1218,238 @@ body {
   color: var(--text-muted);
 }
 
+/* ── Cursor overrides ── */
+.react-flow__pane {
+  cursor: default !important;
+}
+.react-flow__pane.dragging {
+  cursor: grabbing !important;
+}
+.react-flow__handle {
+  cursor: crosshair !important;
+}
+
+/* ── Edge delete button ── */
+.edge-delete-btn {
+  width: 18px;
+  height: 18px;
+  background: #fff;
+  border: 1.5px solid #CBD5E1;
+  border-radius: 50%;
+  font-size: 14px;
+  line-height: 1;
+  color: #94A3B8;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  opacity: 0;
+  transition: opacity 0.15s, border-color 0.15s, color 0.15s, background 0.15s;
+  padding: 0;
+}
+
+.react-flow__edge:hover .edge-delete-btn,
+.react-flow__edge.selected .edge-delete-btn {
+  opacity: 1;
+}
+
+.edge-delete-btn:hover {
+  border-color: #EF4444;
+  color: #EF4444;
+  background: #FEF2F2;
+}
+
+/* ── Context Menu ── */
+.flow-context-menu {
+  position: fixed;
+  z-index: 100;
+  background: #fff;
+  border: 1px solid #E2E8F0;
+  border-radius: 8px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12);
+  padding: 4px;
+  min-width: 180px;
+}
+
+.flow-context-menu-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  padding: 8px 12px;
+  border: none;
+  background: none;
+  border-radius: 6px;
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--text);
+  cursor: pointer;
+  text-align: left;
+  transition: background 0.1s;
+}
+
+.flow-context-menu-item:hover {
+  background: #F1F5F9;
+  color: #135BEC;
+}
+
+.flow-context-menu-item svg {
+  color: #135BEC;
+  flex-shrink: 0;
+}
+
+/* ── Add-node Dialog ── */
+.flow-dialog-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 200;
+  background: rgba(15, 23, 42, 0.35);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.flow-dialog {
+  background: #fff;
+  border-radius: 12px;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.18);
+  width: 400px;
+  max-width: calc(100vw - 32px);
+  display: flex;
+  flex-direction: column;
+}
+
+.flow-dialog-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 18px 20px 14px;
+  border-bottom: 1px solid #F1F5F9;
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--text);
+}
+
+.flow-dialog-close {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border: none;
+  background: none;
+  border-radius: 6px;
+  color: #94A3B8;
+  cursor: pointer;
+  transition: background 0.1s, color 0.1s;
+}
+
+.flow-dialog-close:hover {
+  background: #F1F5F9;
+  color: var(--text);
+}
+
+.flow-dialog-body {
+  padding: 16px 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.flow-dialog-label {
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  color: #94A3B8;
+  margin-top: 10px;
+  margin-bottom: 4px;
+  display: block;
+}
+
+.flow-dialog-label:first-child {
+  margin-top: 0;
+}
+
+.flow-dialog-input,
+.flow-dialog-select {
+  width: 100%;
+  padding: 8px 10px;
+  border: 1.5px solid #E2E8F0;
+  border-radius: 7px;
+  font-size: 13px;
+  color: var(--text);
+  background: #fff;
+  outline: none;
+  box-sizing: border-box;
+  transition: border-color 0.15s;
+  font-family: 'Inter', sans-serif;
+}
+
+.flow-dialog-input:focus,
+.flow-dialog-select:focus {
+  border-color: #135BEC;
+}
+
+.flow-dialog-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+}
+
+.flow-dialog-field {
+  display: flex;
+  flex-direction: column;
+}
+
+.flow-dialog-footer {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px;
+  padding: 14px 20px 18px;
+  border-top: 1px solid #F1F5F9;
+}
+
+.flow-dialog-btn-cancel {
+  padding: 8px 16px;
+  border: 1.5px solid #E2E8F0;
+  border-radius: 7px;
+  background: #fff;
+  font-size: 13px;
+  font-weight: 500;
+  color: #64748B;
+  cursor: pointer;
+  transition: background 0.1s, border-color 0.1s;
+  font-family: 'Inter', sans-serif;
+}
+
+.flow-dialog-btn-cancel:hover {
+  background: #F8FAFC;
+  border-color: #CBD5E1;
+}
+
+.flow-dialog-btn-submit {
+  padding: 8px 20px;
+  border: none;
+  border-radius: 7px;
+  background: #135BEC;
+  font-size: 13px;
+  font-weight: 600;
+  color: #fff;
+  cursor: pointer;
+  transition: background 0.1s, opacity 0.1s;
+  font-family: 'Inter', sans-serif;
+}
+
+.flow-dialog-btn-submit:hover {
+  background: #0e4bd4;
+}
+
+.flow-dialog-btn-submit:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
 /* ── Detail Panel (right side) ── */
 .detail-panel-overlay {
   position: fixed;
