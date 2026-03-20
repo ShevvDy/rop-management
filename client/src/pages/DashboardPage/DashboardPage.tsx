@@ -1,25 +1,115 @@
-import React, { useState, useCallback, useMemo, useRef, useEffect } from 'react';
+import React, { useState, useCallback, useMemo, useRef, useEffect, createContext, useContext } from 'react';
 import {
     ReactFlow,
     ReactFlowProvider,
     Background,
     Controls,
+    Panel,
     useNodesState,
     useEdgesState,
     useReactFlow,
     addEdge,
+    reconnectEdge,
     BaseEdge,
     EdgeLabelRenderer,
     getSmoothStepPath,
     type Node,
     type Edge,
     type EdgeProps,
+    type NodeProps,
     type Connection,
+    Position,
 } from '@xyflow/react';
 import '@xyflow/react/dist/style.css';
+import dagre from '@dagrejs/dagre';
 import CourseNode, { type CourseNodeData } from '../../components/CourseNode';
 import CourseDetailPanel, { type CourseDetail } from '../../components/CourseDetailPanel';
 import styles from './DashboardPage.module.css';
+
+/* ═══════════════════════════════════════════
+   Dagre auto-layout
+   ═══════════════════════════════════════════ */
+const NODE_WIDTH = 180;
+const NODE_HEIGHT = 100;
+
+const getLayoutedElements = (nodes: Node<CourseNodeData>[], edges: Edge[], direction: 'TB' | 'BT' | 'LR' | 'RL' = 'BT') => {
+    const g = new dagre.graphlib.Graph().setDefaultEdgeLabel(() => ({}));
+    g.setGraph({ rankdir: direction, nodesep: 60, ranksep: 80, edgesep: 30 });
+    nodes.forEach((node) => g.setNode(node.id, { width: NODE_WIDTH, height: NODE_HEIGHT }));
+    edges.forEach((edge) => g.setEdge(edge.source, edge.target));
+    dagre.layout(g);
+
+    const isHorizontal = direction === 'LR' || direction === 'RL';
+    const layoutedNodes = nodes.map((node) => {
+        const pos = g.node(node.id);
+        return {
+            ...node,
+            position: { x: pos.x - NODE_WIDTH / 2, y: pos.y - NODE_HEIGHT / 2 },
+            targetPosition: isHorizontal ? Position.Left : Position.Bottom,
+            sourcePosition: isHorizontal ? Position.Right : Position.Top,
+        };
+    });
+    return { nodes: layoutedNodes, edges: [...edges] };
+};
+
+/* ═══════════════════════════════════════════
+   Validation: check orphan nodes
+   ═══════════════════════════════════════════ */
+const findOrphanNodes = (nodes: Node[], edges: Edge[]): string[] => {
+    if (nodes.length <= 1) return [];
+    const connected = new Set<string>();
+    edges.forEach((e) => { connected.add(e.source); connected.add(e.target); });
+    return nodes.filter((n) => !connected.has(n.id)).map((n) => n.id);
+};
+
+/* ═══════════════════════════════════════════
+   Graph edit context (orphan tracking + node deletion)
+   ═══════════════════════════════════════════ */
+const GraphEditContext = createContext<{
+    orphanIds: string[];
+    onDeleteNode: (id: string) => void;
+    onDeleteEdge: (id: string) => void;
+}>({ orphanIds: [], onDeleteNode: () => {}, onDeleteEdge: () => {} });
+
+type CourseNodeType = Node<CourseNodeData>;
+
+function DeletableCourseNode(props: NodeProps<CourseNodeType>) {
+    const { orphanIds, onDeleteNode } = useContext(GraphEditContext);
+    const isOrphan = orphanIds.includes(props.id);
+
+    return (
+        <div className={`${styles.nodeWrapper} ${isOrphan ? styles.nodeOrphan : ''}`}>
+            <CourseNode {...props} />
+            <button
+                className={styles.nodeDeleteBtn}
+                onClick={(e) => { e.stopPropagation(); onDeleteNode(props.id); }}
+                title="Удалить предмет"
+            >
+                <svg width="12" height="12" viewBox="0 0 12 12" fill="none"><path d="M2.5 2.5l7 7M9.5 2.5l-7 7" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" /></svg>
+            </button>
+            {isOrphan && (
+                <div className={styles.nodeOrphanBadge}>
+                    <svg width="12" height="12" viewBox="0 0 12 12" fill="none"><path d="M6 1l5 10H1L6 1z" stroke="currentColor" strokeWidth="1.1" strokeLinejoin="round" /><path d="M6 4.5v2M6 8v.5" stroke="currentColor" strokeWidth="1.1" strokeLinecap="round" /></svg>
+                    Нет связей
+                </div>
+            )}
+        </div>
+    );
+}
+
+function DeletableEdge({ id, sourceX, sourceY, targetX, targetY, sourcePosition: sp, targetPosition: tp, style: edgeStyleProp }: EdgeProps) {
+    const { onDeleteEdge } = useContext(GraphEditContext);
+    const [edgePath, lx, ly] = getSmoothStepPath({ sourceX, sourceY, sourcePosition: sp, targetX, targetY, targetPosition: tp });
+
+    return (
+        <>
+            <BaseEdge path={edgePath} style={edgeStyleProp} />
+            <EdgeLabelRenderer>
+                <button className={styles.edgeDeleteBtn} style={{ position: 'absolute', transform: `translate(-50%, -50%) translate(${lx}px,${ly}px)`, pointerEvents: 'all' }} onClick={(e) => { e.stopPropagation(); onDeleteEdge(id); }}>×</button>
+            </EdgeLabelRenderer>
+        </>
+    );
+}
 
 /* ═══════════════════════════════════════════
    Mock data
@@ -142,23 +232,9 @@ const statusConfig: Record<string, { label: string; bg: string; color: string }>
     archived: { label: 'Архив', bg: '#F1F5F9', color: '#64748B' },
 };
 
-/* ═══════════════════════════════════════════
-   Deletable Edge
-   ═══════════════════════════════════════════ */
-const DeletableEdge: React.FC<EdgeProps> = ({
-    id, sourceX, sourceY, targetX, targetY, sourcePosition, targetPosition, style,
-}) => {
-    const { setEdges } = useReactFlow();
-    const [edgePath, labelX, labelY] = getSmoothStepPath({ sourceX, sourceY, sourcePosition, targetX, targetY, targetPosition });
-    return (
-        <>
-            <BaseEdge path={edgePath} style={style} />
-            <EdgeLabelRenderer>
-                <button className={styles.edgeDeleteBtn} style={{ position: 'absolute', transform: `translate(-50%, -50%) translate(${labelX}px,${labelY}px)`, pointerEvents: 'all' }} onClick={() => setEdges((eds) => eds.filter((e) => e.id !== id))}>×</button>
-            </EdgeLabelRenderer>
-        </>
-    );
-};
+/* Pre-layout initial data with dagre */
+const { nodes: layoutedNodesA, edges: layoutedEdgesA } = getLayoutedElements(nodesVariantA, edgesMain);
+const { nodes: layoutedNodesB, edges: layoutedEdgesB } = getLayoutedElements(nodesVariantB, edgesVariantB);
 
 /* ═══════════════════════════════════════════
    Graph Panel (single React Flow instance)
@@ -177,14 +253,46 @@ interface GraphPanelProps {
 const GraphPanelInner: React.FC<GraphPanelProps> = ({ label, labelColor, initNodes, initEdges, details, onSelectCourse, onDetailsChange, compact }) => {
     const [nodes, setNodes, onNodesChange] = useNodesState(initNodes);
     const [edges, setEdges, onEdgesChange] = useEdgesState(initEdges);
-    const { screenToFlowPosition } = useReactFlow();
+    const { screenToFlowPosition, fitView } = useReactFlow();
     const [menu, setMenu] = useState<{ x: number; y: number; flowX: number; flowY: number } | null>(null);
     const [dialog, setDialog] = useState(false);
     const [pendingPos, setPendingPos] = useState({ x: 0, y: 0 });
     const [form, setForm] = useState({ code: '', name: '', credits: 3, type: 'required' as CourseNodeData['type'], semester: '' });
     const menuRef = useRef<HTMLDivElement>(null);
 
-    const nodeTypes = useMemo(() => ({ courseNode: CourseNode }), []);
+    /* ── Dirty state tracking ── */
+    const [isDirty, setIsDirty] = useState(false);
+    const [isSaving, setIsSaving] = useState(false);
+
+    const markDirty = useCallback(() => setIsDirty(true), []);
+
+    /* ── Orphan tracking (reactive) ── */
+    const orphanIds = useMemo(() => findOrphanNodes(nodes, edges), [nodes, edges]);
+    const hasOrphans = orphanIds.length > 0;
+    const orphanNames = useMemo(() =>
+        orphanIds.map((oid) => {
+            const n = nodes.find((nd) => nd.id === oid);
+            return n?.data?.name?.replace(/\n/g, ' ') || oid;
+        }), [orphanIds, nodes]);
+
+    /* ── Delete node handler ── */
+    const handleDeleteNode = useCallback((nodeId: string) => {
+        setNodes((nds) => nds.filter((n) => n.id !== nodeId));
+        setEdges((eds) => eds.filter((e) => e.source !== nodeId && e.target !== nodeId));
+        const newDetails = { ...details };
+        delete newDetails[nodeId];
+        onDetailsChange(newDetails);
+        onSelectCourse(null);
+        markDirty();
+    }, [setNodes, setEdges, details, onDetailsChange, onSelectCourse, markDirty]);
+
+    /* ── Delete edge handler ── */
+    const handleDeleteEdge = useCallback((edgeId: string) => {
+        setEdges((eds) => eds.filter((e) => e.id !== edgeId));
+        markDirty();
+    }, [setEdges, markDirty]);
+
+    const nodeTypes = useMemo(() => ({ courseNode: DeletableCourseNode }), []);
     const edgeTypes = useMemo(() => ({ deletable: DeletableEdge }), []);
 
     useEffect(() => {
@@ -199,7 +307,36 @@ const GraphPanelInner: React.FC<GraphPanelProps> = ({ label, labelColor, initNod
         if (d) onSelectCourse(d);
     }, [details, onSelectCourse]);
 
-    const onConnect = useCallback((c: Connection) => { setEdges((eds) => addEdge({ ...c, type: 'deletable', style: edgeStyle }, eds)); }, [setEdges]);
+    const onConnect = useCallback((c: Connection) => {
+        setEdges((eds) => addEdge({ ...c, type: 'deletable', style: edgeStyle }, eds));
+        markDirty();
+    }, [setEdges, markDirty]);
+
+    /* ── Edge reconnect (drag handle to detach/reattach) ── */
+    const edgeReconnectSuccessful = useRef(true);
+    const onReconnectStart = useCallback(() => { edgeReconnectSuccessful.current = false; }, []);
+    const onReconnect = useCallback((oldEdge: Edge, newConnection: Connection) => {
+        edgeReconnectSuccessful.current = true;
+        setEdges((eds) => reconnectEdge(oldEdge, newConnection, eds));
+        markDirty();
+    }, [setEdges, markDirty]);
+    const onReconnectEnd = useCallback((_: MouseEvent | TouchEvent, edge: Edge) => {
+        if (!edgeReconnectSuccessful.current) {
+            setEdges((eds) => eds.filter((e) => e.id !== edge.id));
+            markDirty();
+        }
+        edgeReconnectSuccessful.current = true;
+    }, [setEdges, markDirty]);
+
+    const onEdgeDoubleClick = useCallback((_: React.MouseEvent, edge: Edge) => {
+        handleDeleteEdge(edge.id);
+    }, [handleDeleteEdge]);
+
+    const handleNodesChange: typeof onNodesChange = useCallback((changes) => {
+        onNodesChange(changes);
+        if (changes.some((c) => c.type === 'position' && (c as { dragging?: boolean }).dragging === false)) markDirty();
+    }, [onNodesChange, markDirty]);
+
     const onPaneClick = useCallback(() => { setMenu(null); onSelectCourse(null); }, [onSelectCourse]);
     const onPaneContextMenu = useCallback((e: React.MouseEvent | MouseEvent) => {
         e.preventDefault();
@@ -222,20 +359,61 @@ const GraphPanelInner: React.FC<GraphPanelProps> = ({ label, labelColor, initNod
         setNodes((prev) => [...prev, { id, type: 'courseNode', position: pendingPos, data } as Node<CourseNodeData>]);
         onDetailsChange({ ...details, [id]: { id, code: data.code, name: data.name, semester: data.semester, type: data.type, credits: data.credits, summary: '', students: { avatars: [], total: 0 }, teachers: [], materials: [] } });
         setDialog(false);
-    }, [form, pendingPos, setNodes, details, onDetailsChange]);
+        markDirty();
+    }, [form, pendingPos, setNodes, details, onDetailsChange, markDirty]);
+
+    /* ── Dagre auto-layout ── */
+    const onAutoLayout = useCallback((direction: 'BT' | 'LR' = 'BT') => {
+        const { nodes: ln, edges: le } = getLayoutedElements(nodes, edges, direction);
+        setNodes([...ln]);
+        setEdges([...le]);
+        markDirty();
+        requestAnimationFrame(() => fitView({ padding: 0.3 }));
+    }, [nodes, edges, setNodes, setEdges, markDirty, fitView]);
+
+    /* ── Save handler ── */
+    const handleSaveGraph = useCallback(() => {
+        setIsSaving(true);
+        // Simulate API call — collect payload
+        const _payload = {
+            nodes: nodes.map((n) => ({ id: n.id, position: n.position, data: n.data })),
+            edges: edges.map((e) => ({ id: e.id, source: e.source, target: e.target })),
+        };
+        // TODO: POST to backend
+        console.log('[Save graph]', _payload);
+        setTimeout(() => {
+            setIsSaving(false);
+            setIsDirty(false);
+        }, 600);
+    }, [nodes, edges]);
 
     return (
+        <GraphEditContext.Provider value={{ orphanIds, onDeleteNode: handleDeleteNode, onDeleteEdge: handleDeleteEdge }}>
         <div className={`${styles.graphPanel} ${compact ? styles.graphPanelCompact : ''}`}>
             <div className={styles.graphPanelLabel} style={labelColor ? { borderLeftColor: labelColor } : undefined}>
                 {label}
             </div>
+
+            {/* Orphan warning banner */}
+            {hasOrphans && (
+                <div className={styles.orphanBanner}>
+                    <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M8 1.5l6.5 13H1.5L8 1.5z" stroke="currentColor" strokeWidth="1.3" strokeLinejoin="round" /><path d="M8 6v3M8 11v.5" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" /></svg>
+                    <span>Без связей: <strong>{orphanNames.join(', ')}</strong> — сохранение заблокировано</span>
+                </div>
+            )}
+
             <ReactFlow
                 nodes={nodes}
                 edges={edges}
-                onNodesChange={onNodesChange}
+                onNodesChange={handleNodesChange}
                 onEdgesChange={onEdgesChange}
                 onNodeClick={onNodeClick}
                 onConnect={onConnect}
+                onReconnectStart={onReconnectStart}
+                onReconnect={onReconnect}
+                onReconnectEnd={onReconnectEnd}
+                onEdgeDoubleClick={onEdgeDoubleClick}
+                edgesReconnectable
                 onPaneClick={onPaneClick}
                 onPaneContextMenu={onPaneContextMenu}
                 nodeTypes={nodeTypes}
@@ -247,6 +425,31 @@ const GraphPanelInner: React.FC<GraphPanelProps> = ({ label, labelColor, initNod
             >
                 <Background gap={24} size={1} color="#E8ECF1" />
                 {!compact && <Controls showInteractive={false} />}
+
+                {/* Toolbar panel */}
+                <Panel position="top-right" className={styles.graphToolbar}>
+                    <button className={styles.toolbarBtn} onClick={() => onAutoLayout('BT')} title="Авто-раскладка (вертикальная)">
+                        <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><rect x="5.5" y="0.5" width="5" height="3" rx="0.75" stroke="currentColor" strokeWidth="1.1" /><rect x="0.5" y="12.5" width="5" height="3" rx="0.75" stroke="currentColor" strokeWidth="1.1" /><rect x="10.5" y="12.5" width="5" height="3" rx="0.75" stroke="currentColor" strokeWidth="1.1" /><path d="M8 3.5V9M8 9l-5 3.5M8 9l5 3.5" stroke="currentColor" strokeWidth="1.1" /></svg>
+                        Авто
+                    </button>
+                    <button className={styles.toolbarBtn} onClick={() => onAutoLayout('LR')} title="Авто-раскладка (горизонтальная)">
+                        <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><rect x="0.5" y="5.5" width="3" height="5" rx="0.75" stroke="currentColor" strokeWidth="1.1" /><rect x="12.5" y="0.5" width="3" height="5" rx="0.75" stroke="currentColor" strokeWidth="1.1" /><rect x="12.5" y="10.5" width="3" height="5" rx="0.75" stroke="currentColor" strokeWidth="1.1" /><path d="M3.5 8H9M9 8l3.5-5M9 8l3.5 5" stroke="currentColor" strokeWidth="1.1" /></svg>
+                    </button>
+                    <div className={styles.toolbarDivider} />
+                    <button
+                        className={`${styles.toolbarBtn} ${styles.toolbarBtnSave} ${isDirty ? styles.toolbarBtnDirty : ''} ${hasOrphans && isDirty ? styles.toolbarBtnBlocked : ''}`}
+                        onClick={handleSaveGraph}
+                        disabled={!isDirty || isSaving || hasOrphans}
+                        title={hasOrphans ? 'Есть предметы без связей' : isDirty ? 'Сохранить изменения' : 'Нет изменений'}
+                    >
+                        {isSaving ? (
+                            <svg className={styles.spinnerIcon} width="16" height="16" viewBox="0 0 16 16" fill="none"><circle cx="8" cy="8" r="6" stroke="currentColor" strokeWidth="1.5" strokeDasharray="28" strokeDashoffset="8" strokeLinecap="round" /></svg>
+                        ) : (
+                            <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M13.333 2H4L2 4v9.333C2 13.7 2.3 14 2.667 14h10.666c.368 0 .667-.3.667-.667V2.667C14 2.3 13.7 2 13.333 2z" stroke="currentColor" strokeWidth="1.2" /><path d="M5.333 2v4h5.334V2M4.667 14V9.333h6.666V14" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" /></svg>
+                        )}
+                        Сохранить
+                    </button>
+                </Panel>
             </ReactFlow>
 
             {menu && (
@@ -297,6 +500,7 @@ const GraphPanelInner: React.FC<GraphPanelProps> = ({ label, labelColor, initNod
                 </div>
             )}
         </div>
+        </GraphEditContext.Provider>
     );
 };
 
@@ -638,8 +842,8 @@ const DashboardPage: React.FC = () => {
                     <GraphPanel
                         label={selectedYears[0].label}
                         labelColor={selectedProgram.color}
-                        initNodes={nodesVariantA}
-                        initEdges={edgesMain}
+                        initNodes={layoutedNodesA}
+                        initEdges={layoutedEdgesA}
                         details={detailsA}
                         onSelectCourse={setSelectedCourse}
                         onDetailsChange={setDetailsA}
@@ -654,8 +858,8 @@ const DashboardPage: React.FC = () => {
                             <GraphPanel
                                 label={selectedYears[1].label}
                                 labelColor="#D97706"
-                                initNodes={nodesVariantB}
-                                initEdges={edgesVariantB}
+                                initNodes={layoutedNodesB}
+                                initEdges={layoutedEdgesB}
                                 details={detailsB}
                                 onSelectCourse={setSelectedCourse}
                                 onDetailsChange={setDetailsB}

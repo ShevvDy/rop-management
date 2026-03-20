@@ -533,6 +533,199 @@
   border-radius: 1px;
 }
 
+/* ═══════════════════════════════════════════
+   Graph Toolbar (auto-layout + save)
+   ═══════════════════════════════════════════ */
+.graphToolbar {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px;
+  background: #fff;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  box-shadow: var(--shadow-sm);
+}
+
+.toolbarBtn {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 6px 10px;
+  border: none;
+  background: none;
+  border-radius: 7px;
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--text-secondary);
+  cursor: pointer;
+  transition: background 0.12s, color 0.12s;
+  font-family: inherit;
+  white-space: nowrap;
+}
+
+.toolbarBtn:hover {
+  background: #F1F5F9;
+  color: var(--text);
+}
+
+.toolbarBtnSave {
+  color: #94A3B8;
+}
+
+.toolbarBtnSave:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.toolbarBtnDirty {
+  color: var(--primary);
+  background: var(--primary-light);
+}
+
+.toolbarBtnDirty:hover {
+  background: rgba(19, 91, 236, 0.12);
+}
+
+.toolbarBtnBlocked {
+  color: #D97706 !important;
+  background: #FEF3C7 !important;
+}
+
+.toolbarBtnBlocked:hover {
+  background: #FDE68A !important;
+}
+
+.toolbarDivider {
+  width: 1px;
+  height: 20px;
+  background: var(--border);
+  margin: 0 2px;
+  flex-shrink: 0;
+}
+
+/* ── Orphan warning banner ── */
+.orphanBanner {
+  position: absolute;
+  top: 56px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 15;
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  padding: 10px 18px;
+  background: linear-gradient(135deg, #FEF3C7, #FEF9E7);
+  border: 1px solid #FDE68A;
+  border-radius: 10px;
+  font-size: 12px;
+  font-weight: 500;
+  color: #92400E;
+  box-shadow: 0 4px 16px rgba(217, 119, 6, 0.12);
+  width: max-content;
+  max-width: min(480px, calc(100% - 32px));
+  animation: bannerIn 0.25s ease;
+  line-height: 1.5;
+}
+
+.orphanBanner svg {
+  flex-shrink: 0;
+  color: #D97706;
+  margin-top: 2px;
+}
+
+.orphanBanner strong {
+  font-weight: 700;
+}
+
+@keyframes bannerIn {
+  from { opacity: 0; transform: translateX(-50%) translateY(-8px); }
+  to   { opacity: 1; transform: translateX(-50%) translateY(0); }
+}
+
+/* ── Node wrapper (deletable + orphan highlight) ── */
+.nodeWrapper {
+  position: relative;
+}
+
+.nodeWrapper:hover .nodeDeleteBtn {
+  opacity: 1;
+}
+
+.nodeDeleteBtn {
+  position: absolute;
+  top: -6px;
+  right: -6px;
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  background: #fff;
+  border: 1.5px solid #E2E8F0;
+  color: #94A3B8;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  opacity: 0;
+  transition: all 0.15s;
+  z-index: 10;
+  padding: 0;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.08);
+}
+
+.nodeDeleteBtn:hover {
+  border-color: #EF4444;
+  color: #fff;
+  background: #EF4444;
+  transform: scale(1.1);
+  box-shadow: 0 2px 8px rgba(239, 68, 68, 0.3);
+}
+
+.nodeOrphan {
+  border-radius: 12px;
+  animation: orphanPulse 2s ease-in-out infinite;
+}
+
+@keyframes orphanPulse {
+  0%, 100% { box-shadow: 0 0 0 3px rgba(239, 68, 68, 0.35); }
+  50%      { box-shadow: 0 0 0 3px rgba(239, 68, 68, 0.35), 0 0 16px rgba(239, 68, 68, 0.15); }
+}
+
+.nodeOrphanBadge {
+  position: absolute;
+  bottom: -10px;
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 3px 10px;
+  background: #FEF2F2;
+  border: 1px solid #FECACA;
+  border-radius: 6px;
+  font-size: 10px;
+  font-weight: 600;
+  color: #DC2626;
+  white-space: nowrap;
+  box-shadow: 0 2px 6px rgba(239, 68, 68, 0.1);
+  z-index: 5;
+}
+
+.nodeOrphanBadge svg {
+  color: #DC2626;
+  flex-shrink: 0;
+}
+
+/* ── Spinner ── */
+.spinnerIcon {
+  animation: spin 0.8s linear infinite;
+}
+
+@keyframes spin {
+  from { transform: rotate(0deg); }
+  to   { transform: rotate(360deg); }
+}
+
 /* React Flow overrides */
 .graphPanel :global(.react-flow__controls) {
   bottom: 16px;
@@ -571,20 +764,47 @@
   cursor: crosshair !important;
 }
 
-/* Back button */
+/* Edge: wider hover zone for easier interaction */
+.graphPanel :global(.react-flow__edge-interaction) {
+  stroke-width: 24px !important;
+  cursor: pointer !important;
+}
+
+/* Edge reconnect handles — large, visible grab circles at ends */
+.graphPanel :global(.react-flow__reconnect-handle) {
+  width: 16px !important;
+  height: 16px !important;
+  background: #fff !important;
+  border: 2px solid #94A3B8 !important;
+  border-radius: 50% !important;
+  opacity: 0;
+  transition: opacity 0.15s, border-color 0.15s, background 0.15s, transform 0.15s;
+  cursor: grab !important;
+}
+
+.graphPanel :global(.react-flow__edge:hover .react-flow__reconnect-handle) {
+  opacity: 1;
+}
+
+.graphPanel :global(.react-flow__reconnect-handle:hover) {
+  border-color: #EF4444 !important;
+  background: #FEF2F2 !important;
+  transform: scale(1.3);
+}
+
+/* Back button — positioned in breadcrumb area, not overlapping controls */
 .backBtn {
-  position: fixed;
-  bottom: 24px;
-  left: calc(var(--sidebar-width) + 24px);
+  position: absolute;
+  right: 0;
   display: flex;
   align-items: center;
   gap: 6px;
-  padding: 10px 20px;
+  padding: 7px 16px;
   background: #fff;
   border: 1px solid var(--border);
-  border-radius: 10px;
-  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.1);
-  font-size: 14px;
+  border-radius: 8px;
+  box-shadow: var(--shadow-sm);
+  font-size: 13px;
   font-weight: 600;
   color: var(--text);
   cursor: pointer;
@@ -603,12 +823,12 @@
    Edge delete button
    ═══════════════════════════════════════════ */
 .edgeDeleteBtn {
-  width: 18px;
-  height: 18px;
+  width: 22px;
+  height: 22px;
   background: #fff;
   border: 1.5px solid #CBD5E1;
   border-radius: 50%;
-  font-size: 14px;
+  font-size: 15px;
   line-height: 1;
   color: #94A3B8;
   cursor: pointer;
@@ -616,8 +836,9 @@
   align-items: center;
   justify-content: center;
   opacity: 0;
-  transition: opacity 0.15s, border-color 0.15s, color 0.15s, background 0.15s;
+  transition: opacity 0.15s, border-color 0.15s, color 0.15s, background 0.15s, transform 0.15s;
   padding: 0;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.1);
 }
 
 :global(.react-flow__edge:hover) .edgeDeleteBtn,
@@ -627,8 +848,10 @@
 
 .edgeDeleteBtn:hover {
   border-color: #EF4444;
-  color: #EF4444;
-  background: #FEF2F2;
+  color: #fff;
+  background: #EF4444;
+  transform: scale(1.15);
+  box-shadow: 0 2px 8px rgba(239, 68, 68, 0.3);
 }
 
 /* ═══════════════════════════════════════════
@@ -904,9 +1127,5 @@
 
   .gridHeader {
     flex-direction: column;
-  }
-
-  .backBtn {
-    left: 16px;
   }
 }
