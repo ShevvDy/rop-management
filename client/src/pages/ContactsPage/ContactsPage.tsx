@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import styles from './ContactsPage.module.css';
 
 interface Contact {
     id: string;
@@ -125,6 +126,12 @@ const tabs = [
 
 const quickFilters = ['Бакалавриат', 'Магистратура', 'Бюджет', 'Контракт', 'Старосты'];
 
+const statusClass: Record<string, string> = {
+    online: styles.statusOnline,
+    idle: styles.statusIdle,
+    offline: styles.statusOffline,
+};
+
 const ContactsPage: React.FC = () => {
     const [activeTab, setActiveTab] = useState('students');
     const [activeCourse, setActiveCourse] = useState<string>('all');
@@ -132,17 +139,16 @@ const ContactsPage: React.FC = () => {
     const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
 
     return (
-        <div className="contacts-page">
-            {/* Page Header */}
-            <div className="contacts-page-header">
-                <div className="contacts-page-header-left">
+        <div className={styles.page}>
+            <div className={styles.pageHeader}>
+                <div className={styles.pageHeaderLeft}>
                     <h1>Контакты университета</h1>
                     <p>Управление базой данных студентов, преподавателей и персонала</p>
                 </div>
-                <div className="contacts-page-header-right">
-                    <div className="view-toggle">
+                <div className={styles.pageHeaderRight}>
+                    <div className={styles.viewToggle}>
                         <button
-                            className={`view-toggle-btn ${viewMode === 'grid' ? 'active' : ''}`}
+                            className={`${styles.viewToggleBtn} ${viewMode === 'grid' ? styles.active : ''}`}
                             onClick={() => setViewMode('grid')}
                             title="Сетка"
                         >
@@ -154,7 +160,7 @@ const ContactsPage: React.FC = () => {
                             </svg>
                         </button>
                         <button
-                            className={`view-toggle-btn ${viewMode === 'list' ? 'active' : ''}`}
+                            className={`${styles.viewToggleBtn} ${viewMode === 'list' ? styles.active : ''}`}
                             onClick={() => setViewMode('list')}
                             title="Список"
                         >
@@ -163,7 +169,7 @@ const ContactsPage: React.FC = () => {
                             </svg>
                         </button>
                     </div>
-                    <button className="btn-add-contact">
+                    <button className={styles.btnAddContact}>
                         <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
                             <path d="M8 3v10M3 8h10" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
                         </svg>
@@ -172,56 +178,54 @@ const ContactsPage: React.FC = () => {
                 </div>
             </div>
 
-            {/* Tabs */}
-            <div className="contacts-tabs">
+            <div className={styles.tabs}>
                 {tabs.map((tab) => (
                     <button
                         key={tab.key}
-                        className={`contacts-tab ${activeTab === tab.key ? 'active' : ''}`}
+                        className={`${styles.tab} ${activeTab === tab.key ? styles.active : ''}`}
                         onClick={() => setActiveTab(tab.key)}
                     >
-                        <span className="contacts-tab-icon">{tab.icon}</span>
-                        <span className="contacts-tab-label">{tab.label}</span>
-                        <span className="contacts-tab-count">{tab.count}</span>
+                        <span className={styles.tabIcon}>{tab.icon}</span>
+                        <span>{tab.label}</span>
+                        <span className={styles.tabCount}>{tab.count}</span>
                     </button>
                 ))}
             </div>
 
-            {/* Filters Bar */}
-            <div className="contacts-filters-bar">
-                <div className="contacts-search-wrapper">
-                    <svg className="search-icon" width="18" height="18" viewBox="0 0 18 18" fill="none">
+            <div className={styles.filtersBar}>
+                <div className={styles.searchWrapper}>
+                    <svg className={styles.searchIcon} width="18" height="18" viewBox="0 0 18 18" fill="none">
                         <circle cx="8" cy="8" r="5.5" stroke="currentColor" strokeWidth="1.5" />
                         <path d="M12.5 12.5L16 16" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
                     </svg>
                     <input
                         type="text"
-                        className="contacts-search-input"
+                        className={styles.searchInput}
                         placeholder="Поиск по имени, ID, группе или email..."
                         value={searchQuery}
                         onChange={(e) => setSearchQuery(e.target.value)}
                     />
                 </div>
-                <div className="contacts-filter-actions">
-                    <div className="course-filter">
-                        <span className="course-filter-label">КУРС:</span>
+                <div className={styles.filterActions}>
+                    <div className={styles.courseFilter}>
+                        <span className={styles.courseFilterLabel}>КУРС:</span>
                         {['all', '1', '2', '3', '4'].map((c) => (
                             <button
                                 key={c}
-                                className={`course-filter-btn ${activeCourse === c ? 'active' : ''}`}
+                                className={`${styles.courseFilterBtn} ${activeCourse === c ? styles.active : ''}`}
                                 onClick={() => setActiveCourse(c)}
                             >
                                 {c === 'all' ? 'Все' : c}
                             </button>
                         ))}
                     </div>
-                    <button className="filter-btn">
+                    <button className={styles.filterBtn}>
                         <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
                             <path d="M2 4h12M4 8h8M6 12h4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
                         </svg>
                         Фильтры
                     </button>
-                    <button className="filter-btn">
+                    <button className={styles.filterBtn}>
                         <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
                             <path d="M14 10v3a1 1 0 01-1 1H3a1 1 0 01-1-1v-3M10.5 5L8 2.5 5.5 5M8 2.5V10" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
                         </svg>
@@ -230,45 +234,39 @@ const ContactsPage: React.FC = () => {
                 </div>
             </div>
 
-            {/* Quick Filters */}
-            <div className="contacts-quick-filters">
-                <span className="quick-filter-label">БЫСТРЫЙ ФИЛЬТР:</span>
+            <div className={styles.quickFilters}>
+                <span className={styles.quickFilterLabel}>БЫСТРЫЙ ФИЛЬТР:</span>
                 {quickFilters.map((f) => (
-                    <button key={f} className="quick-filter-chip">
-                        {f}
-                    </button>
+                    <button key={f} className={styles.quickFilterChip}>{f}</button>
                 ))}
             </div>
 
-            {/* Cards Grid */}
-            <div className="contacts-grid">
+            <div className={styles.grid}>
                 {contacts.map((contact) => (
                     <div
                         key={contact.id}
-                        className="contact-card"
+                        className={styles.card}
                         style={{ borderTopColor: contact.borderColor }}
                     >
-                        <div className="contact-card-header">
-                            <div className="contact-avatar-wrapper">
+                        <div className={styles.cardHeader}>
+                            <div className={styles.avatarWrapper}>
                                 {contact.avatar ? (
-                                    <img src={contact.avatar} alt={contact.name} className="contact-avatar" />
+                                    <img src={contact.avatar} alt={contact.name} className={styles.avatar} />
                                 ) : contact.initials ? (
-                                    <div className="contact-avatar-initials" style={{ background: contact.avatarBg }}>
+                                    <div className={styles.avatarInitials} style={{ background: contact.avatarBg }}>
                                         {contact.initials}
                                     </div>
                                 ) : (
-                                    <div className="contact-avatar-placeholder" style={{ background: contact.avatarBg }}>
+                                    <div className={styles.avatarPlaceholder} style={{ background: contact.avatarBg }}>
                                         <svg width="32" height="32" viewBox="0 0 32 32" fill="none">
                                             <circle cx="16" cy="12" r="5" stroke="#94A3B8" strokeWidth="1.5" />
                                             <path d="M6 28c0-5.523 4.477-10 10-10s10 4.477 10 10" stroke="#94A3B8" strokeWidth="1.5" />
                                         </svg>
                                     </div>
                                 )}
-                                <span
-                                    className={`contact-status-dot status-${contact.status}`}
-                                />
+                                <span className={`${styles.statusDot} ${statusClass[contact.status]}`} />
                             </div>
-                            <button className="contact-menu-btn">
+                            <button className={styles.menuBtn}>
                                 <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
                                     <circle cx="4" cy="8" r="1.25" fill="currentColor" />
                                     <circle cx="8" cy="8" r="1.25" fill="currentColor" />
@@ -276,45 +274,42 @@ const ContactsPage: React.FC = () => {
                                 </svg>
                             </button>
                         </div>
-                        <div className="contact-card-body">
-                            <h3 className="contact-name">{contact.name}</h3>
-                            <p className="contact-meta">
+                        <div className={styles.cardBody}>
+                            <h3 className={styles.contactName}>{contact.name}</h3>
+                            <p className={styles.contactMeta}>
                                 ID: {contact.studentId} ·{' '}
                                 <span style={{ color: contact.groupColor, fontWeight: 500 }}>
                                     Группа {contact.group}
                                 </span>
                             </p>
                             <span
-                                className="contact-level-badge"
-                                style={{
-                                    background: `${contact.levelColor}14`,
-                                    color: contact.levelColor,
-                                }}
+                                className={styles.levelBadge}
+                                style={{ background: `${contact.levelColor}14`, color: contact.levelColor }}
                             >
                                 {contact.level}
                             </span>
                         </div>
-                        <div className="contact-card-skills">
-                            <span className="skills-label">НАВЫКИ</span>
+                        <div className={styles.cardSkills}>
+                            <span className={styles.skillsLabel}>НАВЫКИ</span>
                             {contact.skills.length > 0 ? (
-                                <div className="skills-tags">
+                                <div className={styles.skillsTags}>
                                     {contact.skills.map((skill) => (
-                                        <span key={skill} className="skill-tag">{skill}</span>
+                                        <span key={skill} className={styles.skillTag}>{skill}</span>
                                     ))}
                                 </div>
                             ) : (
-                                <span className="no-skills">Нет навыков</span>
+                                <span className={styles.noSkills}>Нет навыков</span>
                             )}
                         </div>
-                        <div className="contact-card-actions">
-                            <button className="contact-action-btn">
+                        <div className={styles.cardActions}>
+                            <button className={styles.actionBtn}>
                                 <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
                                     <path d="M2.333 2.333h9.334c.645 0 1.166.522 1.166 1.167v7c0 .645-.521 1.167-1.166 1.167H2.333c-.645 0-1.167-.522-1.167-1.167v-7c0-.645.522-1.167 1.167-1.167z" stroke="currentColor" strokeWidth="1.2" />
                                     <path d="M12.833 3.5L7 7.583 1.167 3.5" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" />
                                 </svg>
                                 Email
                             </button>
-                            <button className="contact-action-btn">
+                            <button className={styles.actionBtn}>
                                 <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
                                     <path d="M12.25 1.75L6.125 7.875M12.25 1.75L8.75 12.25l-2.625-4.375L1.75 5.25l10.5-3.5z" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round" />
                                 </svg>
@@ -325,23 +320,22 @@ const ContactsPage: React.FC = () => {
                 ))}
             </div>
 
-            {/* Pagination */}
-            <div className="contacts-pagination">
-                <span className="pagination-info">
+            <div className={styles.pagination}>
+                <span className={styles.paginationInfo}>
                     Показано <strong>1 - 6</strong> из <strong>842</strong> студентов
                 </span>
-                <div className="pagination-controls">
-                    <button className="pagination-btn" disabled>
+                <div className={styles.paginationControls}>
+                    <button className={styles.paginationBtn} disabled>
                         <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
                             <path d="M9 3L5 7l4 4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
                         </svg>
                     </button>
-                    <button className="pagination-btn active">1</button>
-                    <button className="pagination-btn">2</button>
-                    <button className="pagination-btn">3</button>
-                    <span className="pagination-ellipsis">…</span>
-                    <button className="pagination-btn">12</button>
-                    <button className="pagination-btn">
+                    <button className={`${styles.paginationBtn} ${styles.active}`}>1</button>
+                    <button className={styles.paginationBtn}>2</button>
+                    <button className={styles.paginationBtn}>3</button>
+                    <span className={styles.paginationEllipsis}>…</span>
+                    <button className={styles.paginationBtn}>12</button>
+                    <button className={styles.paginationBtn}>
                         <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
                             <path d="M5 3l4 4-4 4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
                         </svg>

@@ -1,15 +1,16 @@
 import React from 'react';
 import { Outlet } from 'react-router-dom';
-import Sidebar from '../components/Sidebar';
-import Header from '../components/Header';
+import Sidebar from '../../components/Sidebar';
+import Header from '../../components/Header';
+import styles from './MainLayout.module.css';
 
 const MainLayout: React.FC = () => {
     return (
-        <div className="app-layout">
+        <div className={styles.layout}>
             <Sidebar />
-            <div className="app-main">
+            <div className={styles.main}>
                 <Header />
-                <main className="app-content">
+                <main className={styles.content}>
                     <Outlet />
                 </main>
             </div>

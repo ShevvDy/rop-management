@@ -1,6 +1,7 @@
 import React from 'react';
 import { NavLink, useLocation, useNavigate } from 'react-router-dom';
-import { useAuth } from '../contexts/AuthContext';
+import { useAuth } from '../../contexts/AuthContext';
+import styles from './Sidebar.module.css';
 
 const navItems = [
     { path: '/dashboard', label: 'Дашборд', icon: 'dashboard' },
@@ -51,9 +52,9 @@ const Sidebar: React.FC = () => {
     };
 
     return (
-        <aside className="sidebar">
-            <div className="sidebar-logo">
-                <div className="sidebar-logo-icon">
+        <aside className={styles.sidebar}>
+            <div className={styles.logo}>
+                <div className={styles.logoIcon}>
                     <svg width="36" height="36" viewBox="0 0 36 36" fill="none">
                         <circle cx="18" cy="18" r="18" fill="#EBF1FF" />
                         <path d="M18 10l-8 4 8 4 8-4-8-4z" fill="#3B82F6" />
@@ -61,13 +62,13 @@ const Sidebar: React.FC = () => {
                         <path d="M10 22l8 4 8-4" stroke="#3B82F6" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
                     </svg>
                 </div>
-                <div className="sidebar-logo-text">
-                    <span className="sidebar-logo-title">Админ-панель</span>
-                    <span className="sidebar-logo-subtitle">Университет</span>
+                <div className={styles.logoText}>
+                    <span className={styles.logoTitle}>Админ-панель</span>
+                    <span className={styles.logoSubtitle}>Университет</span>
                 </div>
             </div>
 
-            <nav className="sidebar-nav">
+            <nav className={styles.nav}>
                 {navItems.map((item) => {
                     const isActive = location.pathname.startsWith(item.path);
 
@@ -75,17 +76,17 @@ const Sidebar: React.FC = () => {
                         <NavLink
                             key={item.path}
                             to={item.path}
-                            className={`sidebar-nav-item ${isActive ? 'active' : ''}`}
+                            className={`${styles.navItem} ${isActive ? styles.active : ''}`}
                         >
-                            <span className="sidebar-nav-icon">{iconMap[item.icon]}</span>
-                            <span className="sidebar-nav-label">{item.label}</span>
+                            <span className={styles.navIcon}>{iconMap[item.icon]}</span>
+                            <span>{item.label}</span>
                         </NavLink>
                     );
                 })}
             </nav>
 
-            <div className="sidebar-footer">
-                <button className="sidebar-logout-btn" onClick={handleLogout}>
+            <div className={styles.footer}>
+                <button className={styles.logoutBtn} onClick={handleLogout}>
                     <svg width="18" height="18" viewBox="0 0 18 18" fill="none">
                         <path d="M6.75 15.75H3.75a1.5 1.5 0 01-1.5-1.5V3.75a1.5 1.5 0 011.5-1.5h3" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
                         <path d="M12 12.75L15.75 9 12 5.25M6 9h9.75" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />

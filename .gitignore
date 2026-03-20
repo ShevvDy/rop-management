@@ -18,6 +18,8 @@ lerna-debug.log*
 client/node_modules
 client/dist
 client/dist-ssr
+client/.claude
+client/CLAUDE.md
 *.local
 
 # Editor directories and files

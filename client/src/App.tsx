@@ -3,15 +3,17 @@ import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { ConfigProvider, App as AntApp } from 'antd';
 import ruRU from 'antd/locale/ru_RU';
 import { AuthProvider } from './contexts/AuthContext';
-import ProtectedRoute from './components/ProtectedRoute';
-import MainLayout from './layouts/MainLayout';
-import LoginPage from './pages/LoginPage';
-import AuthCallbackPage from './pages/AuthCallbackPage';
-import DashboardPage from './pages/DashboardPage';
-import ContactsPage from './pages/ContactsPage';
-import DataUploadPage from './pages/DataUploadPage';
-import RoleManagementPage from './pages/RoleManagementPage';
-import ProfilePage from './pages/ProfilePage';
+import { ProtectedRoute } from './components';
+import { MainLayout } from './layouts';
+import {
+  LoginPage,
+  AuthCallbackPage,
+  DashboardPage,
+  ContactsPage,
+  DataUploadPage,
+  RoleManagementPage,
+  ProfilePage,
+} from './pages';
 
 const App: React.FC = () => {
   return (

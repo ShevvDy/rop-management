@@ -1,7 +1,8 @@
 import React, { useEffect, useRef } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import axios from 'axios';
-import { useAuth, type User, type OAuthProvider } from '../contexts/AuthContext';
+import { useAuth, type User, type OAuthProvider } from '../../contexts/AuthContext';
+import styles from './AuthCallbackPage.module.css';
 
 const AuthCallbackPage: React.FC = () => {
   const [searchParams] = useSearchParams();
@@ -10,7 +11,6 @@ const AuthCallbackPage: React.FC = () => {
   const handled = useRef(false);
 
   useEffect(() => {
-    // Предотвращаем двойной вызов в StrictMode
     if (handled.current) return;
     handled.current = true;
 
@@ -39,7 +39,6 @@ const AuthCallbackPage: React.FC = () => {
 
     const redirectUri = `${window.location.origin}/auth/callback`;
 
-    // POST /api/auth/callback — бэкенд обменивает code на токен и возвращает данные пользователя
     axios
       .post<{ user: User; token: string }>('/api/auth/callback', {
         code,
@@ -47,7 +46,6 @@ const AuthCallbackPage: React.FC = () => {
         redirect_uri: redirectUri,
       })
       .then(({ data }) => {
-        // Новый пользователь приходит с role: 'guest' (устанавливается на бэкенде)
         setAuth(data.user, data.token);
         navigate('/dashboard', { replace: true });
       })
@@ -57,14 +55,14 @@ const AuthCallbackPage: React.FC = () => {
   }, []);
 
   return (
-    <div className="auth-callback-page">
-      <div className="auth-callback-spinner">
-        <svg width="40" height="40" viewBox="0 0 40 40" fill="none" className="auth-callback-spin">
+    <div className={styles.page}>
+      <div className={styles.spinner}>
+        <svg width="40" height="40" viewBox="0 0 40 40" fill="none" className={styles.spin}>
           <circle cx="20" cy="20" r="17" stroke="#EBF1FF" strokeWidth="4" />
           <path d="M20 3a17 17 0 0 1 17 17" stroke="#3B82F6" strokeWidth="4" strokeLinecap="round" />
         </svg>
       </div>
-      <p className="auth-callback-text">Выполняется вход...</p>
+      <p className={styles.text}>Выполняется вход...</p>
     </div>
   );
 };

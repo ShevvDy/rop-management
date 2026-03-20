@@ -33,9 +33,10 @@
  */
 
 import React from 'react';
-import yandexIcon from '../icons/yandex.svg';
-import googleIcon from '../icons/google.svg';
-import itmoIcon from '../icons/itmo.svg';
+import yandexIcon from '../../icons/yandex.svg';
+import googleIcon from '../../icons/google.svg';
+import itmoIcon from '../../icons/itmo.svg';
+import styles from './LoginPage.module.css';
 
 type OAuthProvider = 'yandex' | 'google' | 'itmo';
 
@@ -73,16 +74,16 @@ const redirectToOAuth = (provider: OAuthProvider) => {
 };
 
 const providers: { key: OAuthProvider; label: string; icon: string; className: string }[] = [
-  { key: 'yandex', label: 'Войти через Яндекс', icon: yandexIcon, className: 'login-btn-yandex' },
-  { key: 'google', label: 'Войти через Google', icon: googleIcon, className: 'login-btn-google' },
-  { key: 'itmo',   label: 'Войти через ИТМО ID', icon: itmoIcon,  className: 'login-btn-itmo'   },
+  { key: 'yandex', label: 'Войти через Яндекс', icon: yandexIcon, className: styles.btnYandex },
+  { key: 'google', label: 'Войти через Google', icon: googleIcon, className: '' },
+  { key: 'itmo',   label: 'Войти через ИТМО ID', icon: itmoIcon,  className: styles.btnItmo },
 ];
 
 const LoginPage: React.FC = () => {
   return (
-    <div className="login-page">
-      <div className="login-card">
-        <div className="login-logo">
+    <div className={styles.page}>
+      <div className={styles.card}>
+        <div className={styles.logo}>
           <svg width="48" height="48" viewBox="0 0 48 48" fill="none">
             <circle cx="24" cy="24" r="24" fill="#EBF1FF" />
             <path d="M24 13l-10 5 10 5 10-5-10-5z" fill="#3B82F6" />
@@ -91,23 +92,23 @@ const LoginPage: React.FC = () => {
           </svg>
         </div>
 
-        <h1 className="login-title">Добро пожаловать</h1>
-        <p className="login-subtitle">
+        <h1 className={styles.title}>Добро пожаловать</h1>
+        <p className={styles.subtitle}>
           Войдите в систему управления РОП через один из доступных провайдеров
         </p>
 
-        <div className="login-providers">
+        <div className={styles.providers}>
           {providers.map(({ key, label, icon, className }) => (
             <button
               key={key}
-              className={`login-provider-btn ${className}`}
+              className={`${styles.providerBtn} ${className}`}
               onClick={() => redirectToOAuth(key)}
             >
-              <span className="login-provider-icon">
-                <img src={icon} style={{ "borderRadius": "12px" }} width={24} height={24} alt={key} />
+              <span className={styles.providerIcon}>
+                <img src={icon} style={{ borderRadius: '12px' }} width={24} height={24} alt={key} />
               </span>
-              <span className="login-provider-label">{label}</span>
-              <span className="login-provider-arrow">
+              <span className={styles.providerLabel}>{label}</span>
+              <span className={styles.providerArrow}>
                 <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
                   <path d="M6 3l5 5-5 5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
                 </svg>
@@ -116,13 +117,13 @@ const LoginPage: React.FC = () => {
           ))}
         </div>
 
-        <p className="login-notice">
+        <p className={styles.notice}>
           После первого входа вам будет присвоена роль <strong>Гость</strong>.
           Доступ к функциям системы предоставляется администратором.
         </p>
       </div>
 
-      <p className="login-footer">UniDataBase &mdash; Единый справочник контактов</p>
+      <p className={styles.footer}>UniDataBase &mdash; Единый справочник контактов</p>
     </div>
   );
 };
