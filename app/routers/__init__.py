@@ -1,5 +1,6 @@
 from fastapi import FastAPI
 
+from .checkpoint import router as checkpoint_router
 from .cohort import router as cohort_router
 from .course import router as course_router
 from .faculty import router as faculty_router
@@ -10,12 +11,14 @@ from .specialization import router as specialization_router
 from .stream import router as stream_router
 from .student import router as student_router
 from .tag import router as tag_router
+from .team import router as team_router
 from .teacher import router as teacher_router
 from .user import router as user_router
 
 
 def init_routers(app: FastAPI) -> None:
     """Инициализация всех роутеров приложения"""
+    app.include_router(checkpoint_router)
     app.include_router(cohort_router)
     app.include_router(course_router)
     app.include_router(faculty_router)
@@ -26,6 +29,7 @@ def init_routers(app: FastAPI) -> None:
     app.include_router(stream_router)
     app.include_router(student_router)
     app.include_router(tag_router)
+    app.include_router(team_router)
     app.include_router(teacher_router)
     app.include_router(user_router)
 

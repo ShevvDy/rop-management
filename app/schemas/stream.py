@@ -27,15 +27,18 @@ class StreamResponse(StreamBase):
 
 
 class StreamWithRelations(StreamResponse):
+    from .checkpoint import CheckpointResponse
     from .semester import SemesterResponse
     from .course import CourseResponse
     from .teacher import TeacherResponse
     from .student import StudentResponse
+    CheckpointResponse: ClassVar
     SemesterResponse: ClassVar
     CourseResponse: ClassVar
     TeacherResponse: ClassVar
     StudentResponse: ClassVar
 
+    checkpoints: list[CheckpointResponse] = Field(..., description="Список контрольных точек")
     semester: SemesterResponse = Field(..., description="Семестр")
     course: CourseResponse = Field(..., description="Курс")
     teacher: Optional[TeacherResponse] = Field(None, description="Преподаватель")
