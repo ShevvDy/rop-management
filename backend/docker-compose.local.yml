@@ -1,0 +1,5 @@
+services:
+  neo4j:
+    ports:
+      - "${DB_UI_PORT}:7474"  # HTTP
+      - "${DB_PORT}:7687"  # Bolt

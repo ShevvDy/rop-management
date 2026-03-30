@@ -1,0 +1,17 @@
+services:
+  neo4j:
+    ports:
+      - "${DB_UI_PORT}:7474"
+  app:
+    build: .
+    container_name: rop-management-api
+    restart: always
+    depends_on:
+      - neo4j
+    ports:
+      - "${PORT}:${PORT}"
+    environment:
+      HOST: ${HOST}
+      PORT: ${PORT}
+      DB_URL: ${DB_URL}
+      ISU_API_KEY: ${ISU_API_KEY}
