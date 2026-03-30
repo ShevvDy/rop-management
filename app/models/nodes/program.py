@@ -8,6 +8,7 @@ from neomodel import (
 
 from ..base_node import BaseNode
 from ..enums import EducationForm, EducationLang, EducationLevel
+from ...exceptions import ForeignKeyException
 from ...utils.types import DictStrAny
 
 
@@ -35,15 +36,19 @@ class Program(BaseNode):
         "BELONGS_TO_PROGRAM"
     )
 
-    groups_rel = AsyncRelationshipFrom(
-        ".group.Group",
-        "BELONGS_TO_PROGRAM"
-    )
+    @classmethod
+    async def _before_creation(cls, data: DictStrAny) -> None:
+        from .faculty import Faculty
 
-    # @classmethod
-    # async def _before_creation(cls, data: DictStrAny) -> None:
-    #     from .faculty import Faculty
-    #     if "faculty_id" not in data:
-    #         raise ValueError("faculty_id is required to create a Program")
-    #     faculty_id = data.pop("faculty_id")
-    #     faculty = await Faculty.get_by_id(faculty_id)
+        faculty_id = data.pop("faculty_id")
+        if not faculty_id:
+            raise ForeignKeyException()
+        faculty = await Faculty.get_by_id(faculty_id)
+        if faculty is None:
+            raise ForeignKeyException(node="Faculty", node_id=faculty_id)
+        data["faculty_obj"] = faculty
+
+    async def _after_creation(self, data: DictStrAny) -> None:
+        faculty = data.pop("faculty_obj")
+        await self.faculty_rel.connect(faculty)
+        self._relations["faculty"] = faculty

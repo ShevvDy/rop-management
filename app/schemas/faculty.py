@@ -2,37 +2,25 @@ from pydantic import BaseModel, Field, ConfigDict
 from typing import Optional, ClassVar
 
 
-class FacultyBase(BaseModel):
+class FacultyBaseSchema(BaseModel):
+    faculty_id: int = Field(..., description="Уникальный идентификатор факультета")
     name: str = Field(..., description="Название факультета")
     short_name: Optional[str] = Field(..., description="Короткое название факультета")
 
-
-class FacultyCreate(FacultyBase):
-    pass
+    model_config = ConfigDict(from_attributes=True)
 
 
-class FacultyUpdate(BaseModel):
+class FacultyCreateSchema(FacultyBaseSchema):
+    faculty_id: int = Field(None, exclude=True)
+
+
+class FacultyUpdateSchema(BaseModel):
     name: Optional[str] = Field(None, description="Название факультета")
     short_name: Optional[str] = Field(None, description="Короткое название факультета")
 
 
-class FacultyResponse(FacultyBase):
-    faculty_id: int
-    model_config = ConfigDict(from_attributes=True)
+class FacultyResponseSchema(FacultyBaseSchema):
+    from .program import ProgramBaseSchema
+    ProgramBaseSchema: ClassVar
 
-
-class FacultyWithRelations(FacultyResponse):
-    from .program import ProgramResponse
-    from .teacher import TeacherResponse
-    ProgramResponse: ClassVar
-    TeacherResponse: ClassVar
-
-    class Program(ProgramResponse):
-        from .cohort import CohortResponse
-        CohortResponse: ClassVar
-
-        faculty_id: int = Field(exclude=True)
-        cohorts: list[CohortResponse] = Field(..., description="Список наборов по году")
-
-    programs: list[Program] = Field(..., description="Список образовательных программ факультета")
-    teachers: list[TeacherResponse] = Field(default=[], description="Список преподавателей факультета")
+    programs: list[ProgramBaseSchema] = Field(..., description="Список программ обучения на факультете")

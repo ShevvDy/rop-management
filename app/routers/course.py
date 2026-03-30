@@ -2,40 +2,36 @@ from fastapi import APIRouter, status
 from typing import List
 
 from ..models import Course
-from ..schemas import CourseCreate, CourseUpdate, CourseResponse, CourseWithRelations
+from ..schemas import CourseBaseSchema, CourseCreateSchema, CourseUpdateSchema, CourseResponseSchema
 
 
 router = APIRouter(prefix="/course", tags=["course"])
 
 
-@router.post("", response_model=CourseResponse, status_code=status.HTTP_201_CREATED)
-async def create_course(course: CourseCreate):
+@router.post("", response_model=CourseResponseSchema, status_code=status.HTTP_201_CREATED)
+async def create_course(course: CourseCreateSchema):
     """Создать новый курс"""
     return await Course.create_node(course.model_dump())
 
 
-@router.get("", response_model=List[CourseResponse])
+@router.get("", response_model=List[CourseBaseSchema])
 async def get_courses(skip: int = 0, limit: int = 100):
     """Получить список всех курсов"""
     return await Course.get_list(skip=skip, limit=limit)
 
 
-@router.get("/{course_id}", response_model=CourseWithRelations)
+@router.get("/{course_id}", response_model=CourseResponseSchema)
 async def get_course(course_id: int):
     """Получить курс по ID"""
-    course = await Course.get_by_id(course_id)
-
-    # Загружаем связанные данные
-    await course.prerequisites.all()
-    await course.tags.all()
-
-    return course
+    return await Course.get_by_id(course_id)
 
 
-@router.put("/{course_id}", response_model=CourseResponse)
-async def update_course(course_id: int, course_update: CourseUpdate):
+@router.put("/{course_id}", response_model=CourseResponseSchema)
+async def update_course(course_id: int, course_update: CourseUpdateSchema):
     """Обновить данные курса"""
-    return await Course.update_node(course_id, course_update.model_dump(exclude_unset=True))
+    course = await Course.update_node(course_id, course_update.model_dump(exclude_unset=True))
+    await course.load_relations('tags', 'prerequisites')
+    return course
 
 
 @router.delete("/{course_id}", status_code=status.HTTP_204_NO_CONTENT)

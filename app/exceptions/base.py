@@ -36,13 +36,9 @@ class UnauthorizedException(AppException):
         super().__init__(message, status_code=401)
 
 
-class UniqueConstraintException(ConflictException):
-    """Исключение для нарушения уникальности"""
-    def __init__(self, message: str = "Запись с такими данными уже существует"):
-        super().__init__(message)
-
-
 class ForeignKeyException(BadRequestException):
     """Исключение для нарушения внешних ключей"""
-    def __init__(self, message: str = "Ссылка на несуществующую запись"):
+    def __init__(self, message: str = "Ссылка на несуществующую запись", node: str = None, node_id: int = None):
+        if node and node_id:
+            message = f"{message}: {node} с ID {node_id} не найден"
         super().__init__(message)

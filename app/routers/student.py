@@ -2,44 +2,37 @@ from fastapi import APIRouter, status
 from typing import List
 
 from ..models import Student
-from ..schemas import StudentCreate, StudentUpdate, StudentResponse, StudentWithRelations
+from ..schemas import StudentCreateSchema, StudentUpdateSchema, StudentResponseSchema
 
 router = APIRouter(prefix="/student", tags=["student"])
 
 
-@router.post("", response_model=StudentResponse, status_code=status.HTTP_201_CREATED)
-async def create_student(student: StudentCreate):
+@router.post("", response_model=StudentResponseSchema, status_code=status.HTTP_201_CREATED)
+async def create_student(student: StudentCreateSchema):
     """Создать нового студента"""
-    return await Student.create_node(student.model_dump())
-
-
-@router.get("", response_model=List[StudentResponse])
-async def get_students(skip: int = 0, limit: int = 100):
-    """Получить список всех студентов"""
-    return await Student.get_list(skip=skip, limit=limit)
-
-
-@router.get("/{student_id}", response_model=StudentWithRelations)
-async def get_student(student_id: int):
-    """Получить студента по ID"""
-    student = await Student.get_by_id(student_id)
-
-    # Загружаем связанные данные
-    await student.user.single()
-    await student.cohort.single()
-    await student.group.single()
-    await student.streams.all()
-
+    student = await Student.create_node(student.model_dump())
+    await student.load_relations('cohort.program', 'group.specialization')
     return student
 
 
-@router.put("/{student_id}", response_model=StudentResponse)
-async def update_student(student_id: int, student_update: StudentUpdate):
+@router.get("", response_model=List[StudentResponseSchema])
+async def get_students(skip: int = 0, limit: int = 100):
+    """Получить список всех студентов"""
+    return await Student.get_list(skip=skip, limit=limit, relations=['user', 'cohort.program', 'group.specialization'])
+
+
+@router.get("/{student_id}", response_model=StudentResponseSchema)
+async def get_student(student_id: int):
+    """Получить студента по ID"""
+    return await Student.get_by_id(student_id, relations=['user', 'cohort.program', 'group.specialization'])
+
+
+@router.put("/{student_id}", response_model=StudentResponseSchema)
+async def update_student(student_id: int, student_update: StudentUpdateSchema):
     """Обновить данные студента"""
-    return await Student.update_node(
-        student_id,
-        student_update.model_dump(exclude_unset=True)
-    )
+    student = await Student.update_node(student_id, student_update.model_dump(exclude_unset=True))
+    await student.load_relations('cohort.program', 'group.specialization')
+    return student
 
 
 @router.delete("/{student_id}", status_code=status.HTTP_204_NO_CONTENT)

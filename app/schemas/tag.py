@@ -2,18 +2,16 @@ from pydantic import BaseModel, Field, ConfigDict
 from typing import Optional
 
 
-class TagBase(BaseModel):
+class TagBaseSchema(BaseModel):
+    tag_id: int = Field(..., description="ID тега")
     name: str = Field(..., description="Название тега")
 
-
-class TagCreate(TagBase):
-    pass
-
-
-class TagUpdate(BaseModel):
-    name: Optional[str] = Field(None, description="Название тега")
-
-
-class TagResponse(TagBase):
-    tag_id: int
     model_config = ConfigDict(from_attributes=True)
+
+
+class TagCreateSchema(TagBaseSchema):
+    tag_id: int = Field(None, exclude=True)
+
+
+class TagUpdateSchema(BaseModel):
+    name: Optional[str] = Field(None, description="Название тега")

@@ -4,9 +4,11 @@ from neomodel import (
     DateTimeProperty,
     AsyncRelationshipFrom,
     AsyncRelationshipTo,
+    AsyncZeroOrMore,
 )
 
 from ..base_node import BaseNode
+from ...utils.types import DictStrAny
 
 
 class User(BaseNode):
@@ -29,41 +31,53 @@ class User(BaseNode):
     # Связи (входящие) - история записей студента/преподавателя
     student_data_rel = AsyncRelationshipFrom(
         ".student.Student",
-        "STUDENT_RECORD_OF"
+        "STUDENT_RECORD_OF",
+        AsyncZeroOrMore,
     )
 
     teacher_data_rel = AsyncRelationshipFrom(
         ".teacher.Teacher",
-        "TEACHER_RECORD_OF"
+        "TEACHER_RECORD_OF",
+        AsyncZeroOrMore,
     )
 
     # Связи (входящие)
     # Когорты, которыми руководит (директор)
     directed_cohorts_rel = AsyncRelationshipFrom(
         ".cohort.Cohort",
-        "DIRECTS_BY"
+        "DIRECTS_BY",
+        AsyncZeroOrMore,
     )
 
     # Когорты, которыми управляет (менеджер)
     managed_cohorts_rel = AsyncRelationshipFrom(
         ".cohort.Cohort",
-        "MANAGES_BY"
+        "MANAGES_BY",
+        AsyncZeroOrMore,
     )
 
     # Связи (исходящие)
     # Теги пользователя
     tags_rel = AsyncRelationshipTo(
         ".tag.Tag",
-        "HAS_TAG"
+        "HAS_TAG",
+        AsyncZeroOrMore,
     )
 
-    # Связи (входящие) - команды
-    owned_teams_rel = AsyncRelationshipFrom(
-        ".team.Team",
-        "OWNED_BY"
-    )
+    @classmethod
+    async def _before_creation(cls, data: DictStrAny) -> None:
+        from .tag import Tag
 
-    teams_rel = AsyncRelationshipFrom(
-        ".team.Team",
-        "HAS_MEMBER"
-    )
+        tags_ids = data.pop("tags_ids", [])
+        tags = []
+        for tag_id in tags_ids:
+            tag = await Tag.get_by_id(tag_id)
+            if tag:
+                tags.append(tag)
+        data["tags_objs"] = tags
+
+    async def _after_creation(self, data: DictStrAny) -> None:
+        tags = data.pop("tags_objs", [])
+        for tag in tags:
+            await self.tags_rel.connect(tag)
+        self._relations["tags"] = tags

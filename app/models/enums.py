@@ -40,9 +40,4 @@ class EducationLang(ChoiceEnum):
 
 class StudentStatus(ChoiceEnum):
     """Статус студента"""
-    __slots__ = ("send_down", "academic_leave", "transferred_from", "transferred_to")
-
-
-class TeacherPosition(ChoiceEnum):
-    """Должность преподавателя"""
-    __slots__ = ("junior", "middle", "senior")
+    __slots__ = ("send_down", "academic_leave")

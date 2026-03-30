@@ -2,31 +2,31 @@ from fastapi import APIRouter, status
 from typing import List
 
 from ..models import Semester
-from ..schemas import SemesterCreate, SemesterUpdate, SemesterResponse
+from ..schemas import SemesterBaseSchema, SemesterCreateSchema, SemesterUpdateSchema
 
 router = APIRouter(prefix="/semester", tags=["semester"])
 
 
-@router.post("", response_model=SemesterResponse, status_code=status.HTTP_201_CREATED)
-async def create_semester(semester: SemesterCreate):
+@router.post("", response_model=SemesterBaseSchema, status_code=status.HTTP_201_CREATED)
+async def create_semester(semester: SemesterCreateSchema):
     """Создать новый семестр"""
     return await Semester.create_node(semester.model_dump())
 
 
-@router.get("", response_model=List[SemesterResponse])
+@router.get("", response_model=List[SemesterBaseSchema])
 async def get_semesters(skip: int = 0, limit: int = 100):
     """Получить список всех семестров"""
     return await Semester.get_list(skip=skip, limit=limit)
 
 
-@router.get("/{semester_id}", response_model=SemesterResponse)
+@router.get("/{semester_id}", response_model=SemesterBaseSchema)
 async def get_semester(semester_id: int):
     """Получить семестр по ID"""
     return await Semester.get_by_id(semester_id)
 
 
-@router.put("/{semester_id}", response_model=SemesterResponse)
-async def update_semester(semester_id: int, semester_update: SemesterUpdate):
+@router.put("/{semester_id}", response_model=SemesterBaseSchema)
+async def update_semester(semester_id: int, semester_update: SemesterUpdateSchema):
     """Обновить данные семестра"""
     return await Semester.update_node(
         semester_id,

@@ -2,7 +2,7 @@ from neomodel import (
     DateTimeProperty,
     IntegerProperty,
     AsyncRelationshipFrom,
-    StringProperty,
+    StringProperty, AsyncZeroOrMore,
 )
 
 from ..base_node import BaseNode
@@ -19,11 +19,13 @@ class Faculty(BaseNode):
     # Связи (входящие)
     programs_rel = AsyncRelationshipFrom(
         ".program.Program",
-        "BELONGS_TO_FACULTY"
+        "BELONGS_TO_FACULTY",
+        AsyncZeroOrMore,
     )
 
     teachers_rel = AsyncRelationshipFrom(
         ".teacher.Teacher",
-        "WORKS_AT_FACULTY"
+        "WORKS_AT_FACULTY",
+        AsyncZeroOrMore,
     )
 

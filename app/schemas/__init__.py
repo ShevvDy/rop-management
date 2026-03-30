@@ -1,33 +1,27 @@
-from .checkpoint import CheckpointCreate, CheckpointUpdate, CheckpointResponse, CheckpointWithRelations
-from .cohort import CohortCreate, CohortUpdate, CohortResponse, CohortWithRelations
-from .course import CourseCreate, CourseUpdate, CourseResponse, CourseWithRelations
-from .faculty import FacultyCreate, FacultyUpdate, FacultyResponse, FacultyWithRelations
-from .group import GroupCreate, GroupUpdate, GroupResponse, GroupWithRelations
-from .planned_course import PlannedCourseCreate, PlannedCourseUpdate, PlannedCourseResponse
-from .program import ProgramCreate, ProgramUpdate, ProgramResponse, ProgramWithRelations
-from .semester import SemesterCreate, SemesterUpdate, SemesterResponse
-from .specialization import SpecializationCreate, SpecializationUpdate, SpecializationResponse, SpecializationWithRelations
-from .stream import StreamCreate, StreamUpdate, StreamResponse, StreamWithRelations
-from .student import StudentCreate, StudentUpdate, StudentResponse, StudentWithRelations
-from .tag import TagCreate, TagUpdate, TagResponse
-from .teacher import TeacherCreate, TeacherUpdate, TeacherResponse, TeacherWithRelations
-from .team import TeamCreate, TeamUpdate, TeamResponse, TeamWithRelations
-from .user import UserCreate, UserUpdate, UserResponse, UserWithRelations
+from .cohort import CohortBaseSchema, CohortCreateSchema, CohortUpdateSchema, CohortResponseSchema, CohortWithRelationsSchema
+from .course import CourseBaseSchema, CourseCreateSchema, CourseUpdateSchema, CourseResponseSchema
+from .faculty import FacultyBaseSchema, FacultyCreateSchema, FacultyUpdateSchema, FacultyResponseSchema
+from .group import GroupBaseSchema, GroupCreateSchema, GroupUpdateSchema, GroupResponseSchema, GroupWithRelationsSchema
+from .program import ProgramBaseSchema, ProgramCreateSchema, ProgramUpdateSchema, ProgramResponseSchema, ProgramWithRelationsSchema
+from .planned_course import PlannedCourseBaseSchema, PlannedCourseCreateSchema, PlannedCourseUpdateSchema, PlannedCourseResponseSchema
+from .semester import SemesterBaseSchema, SemesterCreateSchema, SemesterUpdateSchema
+from .specialization import SpecializationBaseSchema, SpecializationCreateSchema, SpecializationUpdateSchema, SpecializationResponseSchema, SpecializationWithRelationsSchema
+from .student import StudentBaseSchema, StudentCreateSchema, StudentUpdateSchema, StudentResponseSchema
+from .tag import TagBaseSchema, TagCreateSchema, TagUpdateSchema
+from .teacher import TeacherBaseSchema, TeacherCreateSchema, TeacherUpdateSchema, TeacherResponseSchema
+from .user import UserBaseSchema, UserCreateSchema, UserUpdateSchema, UserResponseSchema, UserWithRelationsSchema
 
 __all__ = [
-    "CheckpointCreate", "CheckpointUpdate", "CheckpointResponse", "CheckpointWithRelations",
-    "CohortCreate", "CohortUpdate", "CohortResponse", "CohortWithRelations",
-    "CourseCreate", "CourseUpdate", "CourseResponse", "CourseWithRelations",
-    "FacultyCreate", "FacultyUpdate", "FacultyResponse", "FacultyWithRelations",
-    "GroupCreate", "GroupUpdate", "GroupResponse", "GroupWithRelations",
-    "PlannedCourseCreate", "PlannedCourseUpdate", "PlannedCourseResponse",
-    "ProgramCreate", "ProgramUpdate", "ProgramResponse", "ProgramWithRelations",
-    "SemesterCreate", "SemesterUpdate", "SemesterResponse",
-    "SpecializationCreate", "SpecializationUpdate", "SpecializationResponse", "SpecializationWithRelations",
-    "StreamCreate", "StreamUpdate", "StreamResponse", "StreamWithRelations",
-    "StudentCreate", "StudentUpdate", "StudentResponse", "StudentWithRelations",
-    "TagCreate", "TagUpdate", "TagResponse",
-    "TeacherCreate", "TeacherUpdate", "TeacherResponse", "TeacherWithRelations",
-    "TeamCreate", "TeamUpdate", "TeamResponse", "TeamWithRelations",
-    "UserCreate", "UserUpdate", "UserResponse", "UserWithRelations",
+    "CohortBaseSchema", "CohortCreateSchema", "CohortUpdateSchema", "CohortResponseSchema", "CohortWithRelationsSchema",
+    "CourseBaseSchema", "CourseCreateSchema", "CourseUpdateSchema", "CourseResponseSchema",
+    "FacultyBaseSchema", "FacultyCreateSchema", "FacultyUpdateSchema", "FacultyResponseSchema",
+    "GroupBaseSchema", "GroupCreateSchema", "GroupUpdateSchema", "GroupResponseSchema", "GroupWithRelationsSchema",
+    "ProgramBaseSchema", "ProgramCreateSchema", "ProgramUpdateSchema", "ProgramResponseSchema", "ProgramWithRelationsSchema",
+    "PlannedCourseBaseSchema", "PlannedCourseCreateSchema", "PlannedCourseUpdateSchema", "PlannedCourseResponseSchema",
+    "SemesterBaseSchema", "SemesterCreateSchema", "SemesterUpdateSchema",
+    "SpecializationBaseSchema", "SpecializationCreateSchema", "SpecializationUpdateSchema", "SpecializationResponseSchema", "SpecializationWithRelationsSchema",
+    "StudentBaseSchema", "StudentCreateSchema", "StudentUpdateSchema", "StudentResponseSchema",
+    "TagBaseSchema", "TagCreateSchema", "TagUpdateSchema",
+    "TeacherBaseSchema", "TeacherCreateSchema", "TeacherUpdateSchema", "TeacherResponseSchema",
+    "UserBaseSchema", "UserCreateSchema", "UserUpdateSchema", "UserResponseSchema", "UserWithRelationsSchema",
 ]

@@ -2,45 +2,35 @@ from fastapi import APIRouter, status
 from typing import List
 
 from ..models import Cohort
-from ..schemas import CohortCreate, CohortUpdate, CohortResponse, CohortWithRelations
+from ..schemas import CohortCreateSchema, CohortUpdateSchema, CohortResponseSchema, CohortWithRelationsSchema
 
 router = APIRouter(prefix="/cohort", tags=["cohort"])
 
 
-@router.post("", response_model=CohortResponse, status_code=status.HTTP_201_CREATED)
-async def create_cohort(cohort: CohortCreate):
+@router.post("", response_model=CohortResponseSchema, status_code=status.HTTP_201_CREATED)
+async def create_cohort(cohort: CohortCreateSchema):
     """Создать новый поток по учебному году"""
     return await Cohort.create_node(cohort.model_dump())
 
 
-@router.get("", response_model=List[CohortResponse])
+@router.get("", response_model=List[CohortResponseSchema])
 async def get_cohorts(skip: int = 0, limit: int = 100):
     """Получить список всех потоков по учебным годам"""
-    return await Cohort.get_list(skip=skip, limit=limit)
+    return await Cohort.get_list(skip=skip, limit=limit, relations=['program', 'director', 'manager'])
 
 
-@router.get("/{cohort_id}", response_model=CohortWithRelations)
+@router.get("/{cohort_id}", response_model=CohortWithRelationsSchema)
 async def get_cohort(cohort_id: int):
     """Получить поток по учебному году по ID"""
-    cohort = await Cohort.get_by_id(cohort_id)
-
-    # Загружаем связанные данные
-    program = await cohort.program.single()
-    if program:
-        await program.faculty.single()
-
-    await cohort.director.single()
-    await cohort.manager.single()
-    await cohort.specializations.all()
-    await cohort.education_plan.all()
-
-    return cohort
+    return await Cohort.get_by_id(cohort_id, relations=['program.faculty', 'director', 'manager', 'specializations', 'groups'])
 
 
-@router.put("/{cohort_id}", response_model=CohortResponse)
-async def update_cohort(cohort_id: int, cohort_update: CohortUpdate):
+@router.put("/{cohort_id}", response_model=CohortResponseSchema)
+async def update_cohort(cohort_id: int, cohort_update: CohortUpdateSchema):
     """Обновить данные потока по учебному году"""
-    return await Cohort.update_node(cohort_id, cohort_update.model_dump(exclude_unset=True))
+    cohort = await Cohort.update_node(cohort_id, cohort_update.model_dump(exclude_unset=True))
+    await cohort.load_relations('program', 'director', 'manager')
+    return cohort
 
 
 @router.delete("/{cohort_id}", status_code=status.HTTP_204_NO_CONTENT)

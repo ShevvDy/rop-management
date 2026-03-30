@@ -1,8 +1,9 @@
 from pydantic import BaseModel, Field, ConfigDict
-from typing import Optional, ClassVar, List
+from typing import Optional, ClassVar
 
 
-class CourseBase(BaseModel):
+class CourseBaseSchema(BaseModel):
+    course_id: int = Field(..., description="Уникальный идентификатор курса")
     name: str = Field(..., description="Название курса")
     code: str = Field(..., description="Код курса")
     credits: int = Field(..., description="Зачетные единицы", ge=1, le=20)
@@ -11,12 +12,16 @@ class CourseBase(BaseModel):
     syllabus_link: Optional[str] = Field(None, description="Ссылка на силлабус")
     rpd_link: Optional[str] = Field(None, description="Ссылка на РПД")
 
-
-class CourseCreate(CourseBase):
-    pass
+    model_config = ConfigDict(from_attributes=True)
 
 
-class CourseUpdate(BaseModel):
+class CourseCreateSchema(CourseBaseSchema):
+    course_id: Optional[int] = Field(None, exclude=True)
+    prerequisites_ids: Optional[list[int]] = Field(default=[], description="Список ID курсов-пререквизитов")
+    tags_ids: Optional[list[int]] = Field(default=[], description="Список ID тегов курса")
+
+
+class CourseUpdateSchema(BaseModel):
     name: Optional[str] = Field(None, description="Название курса")
     code: Optional[str] = Field(None, description="Код курса")
     credits: Optional[int] = Field(None, description="Количество кредитов", ge=1, le=20)
@@ -24,25 +29,13 @@ class CourseUpdate(BaseModel):
     is_elective: Optional[bool] = Field(None, description="Элективный курс")
     syllabus_link: Optional[str] = Field(None, description="Ссылка на силлабус")
     rpd_link: Optional[str] = Field(None, description="Ссылка на РПД")
+    prerequisites_ids: Optional[list[int]] = Field(default=None, description="Список ID курсов-пререквизитов")
+    tags_ids: Optional[list[int]] = Field(default=None, description="Список ID тегов курса")
 
 
-class CourseResponse(CourseBase):
-    course_id: int
-    model_config = ConfigDict(from_attributes=True)
+class CourseResponseSchema(CourseBaseSchema):
+    from .tag import TagBaseSchema
+    TagBaseSchema: ClassVar
 
-
-class CourseWithRelations(CourseResponse):
-    from .tag import TagResponse
-    from .team import TeamResponse
-    TagResponse: ClassVar
-    TeamResponse: ClassVar
-
-    class Prerequisite(BaseModel):
-        course_id: int
-        name: str = Field(..., description="Название курса-пререквизита")
-        code: str = Field(..., description="Код курса-пререквизита")
-        model_config = ConfigDict(from_attributes=True)
-
-    prerequisites: List[Prerequisite] = Field(default=[], description="Список курсов-пререквизитов")
-    tags: List[TagResponse] = Field(default=[], description="Список тегов курса")
-    teams: List[TeamResponse] = Field(default=[], description="Список команд, связанных с курсом")
+    tags: list[TagBaseSchema] = Field(default=[], description="Список тегов курса")
+    prerequisites: list[CourseBaseSchema] = Field(default=[], description="Список курсов-пререквизитов")

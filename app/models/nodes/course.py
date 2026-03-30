@@ -3,11 +3,12 @@ from neomodel import (
     IntegerProperty,
     AsyncRelationshipFrom,
     AsyncRelationshipTo,
-    StringProperty,
+    StringProperty, AsyncZeroOrMore,
 )
 
 from ..base_node import BaseNode
 from ..enums import EducationForm
+from ...utils.types import DictStrAny
 
 
 class Course(BaseNode):
@@ -26,34 +27,58 @@ class Course(BaseNode):
     # Пререквизиты - курсы, которые нужно пройти перед этим курсом
     prerequisites_rel = AsyncRelationshipTo(
         ".course.Course",
-        "REQUIRES_PREREQUISITE"
+        "REQUIRES_PREREQUISITE",
+        AsyncZeroOrMore,
     )
 
     # Теги курса
     tags_rel = AsyncRelationshipTo(
         ".tag.Tag",
-        "HAS_TAG"
+        "HAS_TAG",
+        AsyncZeroOrMore,
     )
 
     # Связи (входящие)
     # Курсы, для которых этот курс является пререквизитом
     dependent_courses_rel = AsyncRelationshipFrom(
         ".course.Course",
-        "REQUIRES_PREREQUISITE"
-    )
-
-    streams_rel = AsyncRelationshipFrom(
-        ".stream.Stream",
-        "TEACHES_COURSE"
-    )
-
-    teams_rel = AsyncRelationshipFrom(
-        ".team.Team",
-        "WORKS_ON_COURSE"
+        "REQUIRES_PREREQUISITE",
+        AsyncZeroOrMore,
     )
 
     planned_in_rel = AsyncRelationshipFrom(
         ".planned_course.PlannedCourse",
-        "PLANS_COURSE"
+        "PLANS_COURSE",
+        AsyncZeroOrMore,
     )
 
+    @classmethod
+    async def _before_creation(cls, data: DictStrAny) -> None:
+        from .tag import Tag
+
+        prerequisites_ids = data.pop("prerequisites_ids", [])
+        prerequisites = []
+        for prereq_id in prerequisites_ids:
+            prereq_course = await cls.get_by_id(prereq_id)
+            if prereq_course is not None:
+                prerequisites.append(prereq_course)
+        data["prerequisites_objs"] = prerequisites
+
+        tags_ids = data.pop("tags_ids", [])
+        tags = []
+        for tag_id in tags_ids:
+            tag = await Tag.get_by_id(tag_id)
+            if tag is not None:
+                tags.append(tag)
+        data["tags_objs"] = tags
+
+    async def _after_creation(self, data: DictStrAny) -> None:
+        prerequisites = data.pop("prerequisites_objs", [])
+        for prereq_course in prerequisites:
+            await self.prerequisites_rel.connect(prereq_course)
+        self._relations["prerequisites"] = prerequisites
+
+        tags = data.pop("tags_objs", [])
+        for tag in tags:
+            await self.tags_rel.connect(tag)
+        self._relations["tags"] = tags

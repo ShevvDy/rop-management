@@ -1,6 +1,8 @@
+import re
+
 from fastapi import FastAPI, Request
 from fastapi.responses import JSONResponse
-from sqlalchemy.exc import IntegrityError, DataError
+from neomodel.exceptions import UniqueProperty
 from pydantic import ValidationError
 
 from .base import (
@@ -10,7 +12,6 @@ from .base import (
     ConflictException,
     ForbiddenException,
     UnauthorizedException,
-    UniqueConstraintException,
     ForeignKeyException,
 )
 
@@ -32,52 +33,20 @@ def init_exceptions(app: FastAPI):
             content={"detail": exc.errors()}
         )
 
-    @app.exception_handler(IntegrityError)
-    async def integrity_error_handler(request: Request, exc: IntegrityError):
-        error_info = str(exc.orig)
+    @app.exception_handler(UniqueProperty)
+    async def unique_property_exception_handler(request: Request, exc: UniqueProperty):
+        error_info = str(exc)
+        # Пытаемся извлечь имя поля и значение из сообщения UniqueProperty
+        match = re.search(r"property `([^`]+)` = '([^']+)'", error_info)
+        if match:
+            field_name, field_value = match.groups()
+            detail = f"Запись со значением '{field_value}' поля '{field_name}' уже существует"
+        else:
+            detail = "Запись с такими данными уже существует"
 
-        # Обработка нарушения уникальности
-        if 'unique constraint' in error_info.lower() or 'duplicate key' in error_info.lower():
-            if 'Key (' in error_info:
-                field_name = error_info.split('Key (')[1].split(')')[0]
-                return JSONResponse(
-                    status_code=400,
-                    content={"detail": f"Запись с таким значением поля '{field_name}' уже существует"}
-                )
-            return JSONResponse(
-                status_code=400,
-                content={"detail": "Запись с такими данными уже существует"}
-            )
-
-        # Обработка нарушения внешних ключей при добавлении/обновлении
-        if 'foreign key constraint' in error_info.lower() or 'violates foreign key' in error_info.lower():
-            if 'is still referenced' in error_info.lower():
-                return JSONResponse(
-                    status_code=400,
-                    content={"detail": "Невозможно удалить запись, так как на неё ссылаются другие записи"}
-                )
-            if 'Key (' in error_info:
-                field_name = error_info.split('Key (')[1].split(')')[0]
-                return JSONResponse(
-                    status_code=400,
-                    content={"detail": f"Указанная ссылка в поле '{field_name}' не существует"}
-                )
-            return JSONResponse(
-                status_code=400,
-                content={"detail": "Ссылка на несуществующую запись"}
-            )
-
-        # Общая ошибка целостности данных
         return JSONResponse(
             status_code=400,
-            content={"detail": "Нарушение целостности данных"}
-        )
-
-    @app.exception_handler(DataError)
-    async def data_error_handler(request: Request, exc: DataError):
-        return JSONResponse(
-            status_code=400,
-            content={"detail": "Неверный формат данных"}
+            content={"detail": detail}
         )
 
 
@@ -89,6 +58,5 @@ __all__ = [
     "ConflictException",
     "ForbiddenException",
     "UnauthorizedException",
-    "UniqueConstraintException",
     "ForeignKeyException",
 ]

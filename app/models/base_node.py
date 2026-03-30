@@ -3,7 +3,7 @@ from datetime import date, datetime, time, timedelta, UTC
 from enum import Enum
 from typing import Optional, Any
 
-from neomodel import AsyncStructuredNode, adb, AsyncRelationshipManager
+from neomodel import AsyncStructuredNode, adb, AsyncRelationshipManager, AsyncNodeSet, AsyncOne, AsyncZeroOrMore, AsyncZeroOrOne
 from neomodel.exceptions import DoesNotExist
 from neomodel.properties import Property
 
@@ -18,38 +18,51 @@ class BaseNode(AsyncStructuredNode):
     """
     __abstract_node__ = True
 
-    __relations = {}
-
     def __init__(self, *args, **kwargs) -> None:
         super().__init__(*args, **kwargs)
+        self._relations = {}
 
     def __getattr__(self, item):
         """Переопределяем доступ к атрибутам для загрузки связей по требованию"""
-        if item in self.__relations:
-            return self.__relations[item]
-        raise AttributeError(f"'{self.__class__.__name__}' object has no attribute '{item}'")
+        if item in self._relations:
+            return self._relations[item]
+        raise AttributeError(f"'{self.__class__.__name__}' object has no attribute '{item}'. If it's a relation, load it firstly")
 
     async def load_relations(self, *relations: str) -> None:
         """Загружает указанные связи для узла"""
         for relation in relations:
-            rel_field = f"{relation}_rel"
-            if relation in self.__relations:
+            sub_relations = relation.split('.', maxsplit=1)
+            rel_name = sub_relations[0]
+            rel_field = f"{rel_name}_rel"
+            if rel_name in self._relations:
+                if len(sub_relations) > 1:
+                    relation_model = self._relations[rel_name]
+                    if isinstance(relation_model, list):
+                        for item in relation_model:
+                            await item.load_relations(sub_relations[1])
+                    else:
+                        await relation_model.load_relations(sub_relations[1])
                 continue
             if hasattr(self, rel_field):
                 manager = getattr(self, rel_field)
                 if isinstance(manager, AsyncRelationshipManager):
-                    if manager.definition['direction'] == -1:
+                    if isinstance(manager, AsyncZeroOrMore):
                         values = await manager.all()
-                    elif manager.definition['direction'] == 1:
+                        if len(sub_relations) > 1:
+                            for item in values:
+                                await item.load_relations(sub_relations[1])
+                    elif isinstance(manager, AsyncZeroOrOne) or isinstance(manager, AsyncOne):
                         values = await manager.single()
+                        if len(sub_relations) > 1 and values:
+                            await values.load_relations(sub_relations[1])
                     else:
-                        raise ValueError(f"Unsupported relationship direction for {relation}: {manager.definition['direction']}")
-                    self.__relations[relation] = values
+                        raise ValueError(f"Unsupported relationship cardinality for {rel_name}: {manager.__class__.__name__}")
+                    self._relations[rel_name] = values
                     continue
-            raise AttributeError(f"Relation '{relation}' not found in {self.__class__.__name__}")
+            raise AttributeError(f"Relation '{rel_name}' not found in {self.__class__.__name__}")
 
     async def refresh(self) -> None:
-        self.__relations = {}
+        self._relations = {}
         await super().refresh()
 
     @classmethod
@@ -112,11 +125,7 @@ class BaseNode(AsyncStructuredNode):
 
             # Загрузка связей если указаны
             if relations:
-                for relation in relations:
-                    if hasattr(node, relation):
-                        relation_obj = getattr(node, relation)
-                        if hasattr(relation_obj, 'all'):
-                            await relation_obj.all()
+                await node.load_relations(*relations)
 
             return node
         except DoesNotExist:
@@ -173,16 +182,7 @@ class BaseNode(AsyncStructuredNode):
 
         # Добавляем связи если указаны
         if relations:
-            for relation in relations:
-                if hasattr(self, relation):
-                    relation_obj = getattr(self, relation)
-                    if hasattr(relation_obj, 'all'):
-                        # Загружаем связь если еще не загружена
-                        related_nodes = await relation_obj.all()
-                        result[relation] = [
-                            await node.to_dict() if hasattr(node, 'to_dict') else str(node)
-                            for node in related_nodes
-                        ]
+            await self.load_relations(*relations)
 
         return result
 
@@ -208,20 +208,21 @@ class BaseNode(AsyncStructuredNode):
         Returns:
             Список узлов
         """
-        query = cls.nodes
+        query: AsyncNodeSet = cls.nodes  # noqa F821
 
         # Применяем фильтры
         if filters:
-            query = query.filter(**filters)
+            query.filter(**filters)
 
         # Сортировка
-        if order_by:
-            query = query.order_by(order_by)
+        if not order_by:
+            order_by = cls._get_pk_name()  # Сортируем по ID по умолчанию
+        query.order_by(order_by)
 
         # Пагинация
-        query = query[skip:]
+        query.skip = skip
         if limit is not None:
-            query = query[:skip + limit]
+            query.limit = limit
 
         # Получаем результаты
         nodes = await query.all()
@@ -229,11 +230,7 @@ class BaseNode(AsyncStructuredNode):
         # Загружаем связи если указаны
         if relations:
             for node in nodes:
-                for relation in relations:
-                    if hasattr(node, relation):
-                        relation_obj = getattr(node, relation)
-                        if hasattr(relation_obj, 'all'):
-                            await relation_obj.all()
+                await node.load_relations(*relations)
 
         return nodes
 

@@ -2,9 +2,11 @@ from neomodel import (
     IntegerProperty,
     AsyncRelationshipFrom,
     StringProperty,
+    AsyncZeroOrMore,
 )
 
 from ..base_node import BaseNode
+from ...utils.types import DictStrAny
 
 
 class Semester(BaseNode):
@@ -14,14 +16,8 @@ class Semester(BaseNode):
     semester_number = IntegerProperty(required=True)
     study_year = StringProperty(required=True)  # Формат: "2023/2024"
 
-    # Связи (входящие)
-    streams_rel = AsyncRelationshipFrom(
-        ".stream.Stream",
-        "IN_SEMESTER"
-    )
-
     planned_courses_rel = AsyncRelationshipFrom(
         ".planned_course.PlannedCourse",
-        "IN_SEMESTER"
+        "IN_SEMESTER",
+        AsyncZeroOrMore,
     )
-

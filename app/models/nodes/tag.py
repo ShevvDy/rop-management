@@ -2,6 +2,7 @@ from neomodel import (
     AsyncRelationshipFrom,
     StringProperty,
     IntegerProperty,
+    AsyncZeroOrMore,
 )
 
 from ..base_node import BaseNode
@@ -16,21 +17,12 @@ class Tag(BaseNode):
     # Связи (входящие) - many-to-many через связи
     users_rel = AsyncRelationshipFrom(
         ".user.User",
-        "HAS_TAG"
+        "HAS_TAG",
+        AsyncZeroOrMore,
     )
 
     courses_rel = AsyncRelationshipFrom(
         ".course.Course",
-        "HAS_TAG"
+        "HAS_TAG",
+        AsyncZeroOrMore,
     )
-
-    checkpoints_rel = AsyncRelationshipFrom(
-        ".checkpoint.Checkpoint",
-        "HAS_TAG"
-    )
-
-    teams_rel = AsyncRelationshipFrom(
-        ".team.Team",
-        "HAS_TAG"
-    )
-
