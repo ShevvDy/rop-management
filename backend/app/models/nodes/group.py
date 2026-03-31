@@ -6,7 +6,6 @@ from neomodel import (
 )
 
 from ..base_node import BaseNode
-from ...exceptions import ForeignKeyException
 from ...utils.types import DictStrAny
 
 
@@ -41,26 +40,16 @@ class Group(BaseNode):
         from .cohort import Cohort
         from .specialization import Specialization
 
-        cohort_id = data.pop("cohort_id", None)
-        if not cohort_id:
-            raise ForeignKeyException()
-        cohort = await Cohort.get_by_id(cohort_id)
-        if not cohort:
-            raise ForeignKeyException(node="Cohort", node_id=cohort_id)
-        data["cohort_obj"] = cohort
-
-        specialization_id = data.pop("specialization_id", None)
-        if specialization_id:
-            specialization = await Specialization.get_by_id(specialization_id)
-            if specialization:
-                data["specialization_obj"] = specialization
+        await cls._check_relationship_before_creation(data, 'cohort', Cohort)
+        await cls._check_relationship_before_creation(data, 'specialization', Specialization)
 
     async def _after_creation(self, data: DictStrAny) -> None:
-        cohort = data.pop("cohort_obj")
-        await self.cohort_rel.connect(cohort)
-        self._relations["cohort"] = cohort
+        await self._update_relationship(data, 'cohort')
+        await self._update_relationship(data, 'specialization')
 
-        specialization = data.pop("specialization_obj", None)
-        if specialization:
-            await self.specialization_rel.connect(specialization)
-            self._relations["specialization"] = specialization
+    async def _before_update(self, data: DictStrAny) -> None:
+        from .specialization import Specialization
+        await self._check_relationship_before_update(data, 'specialization', Specialization)
+
+    async def _after_update(self, data: DictStrAny) -> None:
+        await self._update_relationship(data, 'specialization')

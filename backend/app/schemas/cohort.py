@@ -10,6 +10,7 @@ class CohortBaseSchema(BaseModel):
 
 
 class CohortCreateSchema(CohortBaseSchema):
+    cohort_id: Optional[int] = Field(None, exclude=True)
     program_id: int = Field(..., description="ID программы обучения")
     director_id: Optional[int] = Field(None, description="ID руководителя ОП")
     manager_id: Optional[int] = Field(None, description="ID менеджера ОП")

@@ -56,29 +56,19 @@ class Course(BaseNode):
     async def _before_creation(cls, data: DictStrAny) -> None:
         from .tag import Tag
 
-        prerequisites_ids = data.pop("prerequisites_ids", [])
-        prerequisites = []
-        for prereq_id in prerequisites_ids:
-            prereq_course = await cls.get_by_id(prereq_id)
-            if prereq_course is not None:
-                prerequisites.append(prereq_course)
-        data["prerequisites_objs"] = prerequisites
-
-        tags_ids = data.pop("tags_ids", [])
-        tags = []
-        for tag_id in tags_ids:
-            tag = await Tag.get_by_id(tag_id)
-            if tag is not None:
-                tags.append(tag)
-        data["tags_objs"] = tags
+        await cls._check_relationship_before_creation(data, "prerequisites", cls)
+        await cls._check_relationship_before_creation(data, "tags", Tag)
 
     async def _after_creation(self, data: DictStrAny) -> None:
-        prerequisites = data.pop("prerequisites_objs", [])
-        for prereq_course in prerequisites:
-            await self.prerequisites_rel.connect(prereq_course)
-        self._relations["prerequisites"] = prerequisites
+        await self._update_relationship(data, "prerequisites")
+        await self._update_relationship(data, "tags")
 
-        tags = data.pop("tags_objs", [])
-        for tag in tags:
-            await self.tags_rel.connect(tag)
-        self._relations["tags"] = tags
+    async def _before_update(self, data: DictStrAny) -> None:
+        from .tag import Tag
+
+        await self._check_relationship_before_update(data, "prerequisites", self.__class__)
+        await self._check_relationship_before_update(data, "tags", Tag)
+
+    async def _after_update(self, data: DictStrAny) -> None:
+        await self._update_relationship(data, "prerequisites")
+        await self._update_relationship(data, "tags")

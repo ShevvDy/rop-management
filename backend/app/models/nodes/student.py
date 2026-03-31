@@ -9,7 +9,6 @@ from neomodel import (
 
 from ..base_node import BaseNode
 from ..enums import StudentStatus
-from ...exceptions import ForeignKeyException
 from ...utils.types import DictStrAny
 
 
@@ -54,37 +53,11 @@ class Student(BaseNode):
         from .cohort import Cohort
         from .group import Group
 
-        user_id = data.pop("user_id", None)
-        cohort_id = data.pop("cohort_id", None)
-        group_id = data.pop("group_id", None)
-        if not user_id or not cohort_id:
-            raise ForeignKeyException()
-
-        user = await User.get_by_id(user_id)
-        if not user:
-            raise ForeignKeyException(node="User", node_id=user_id)
-        data['user_obj'] = user
-
-        cohort = await Cohort.get_by_id(cohort_id)
-        if not cohort:
-            raise ForeignKeyException(node="Cohort", node_id=cohort_id)
-        data['cohort_obj'] = cohort
-
-        if group_id:
-            group = await Group.get_by_id(group_id)
-            if group:
-                data['group_obj'] = group
+        await cls._check_relationship_before_creation(data, 'user', User)
+        await cls._check_relationship_before_creation(data, 'cohort', Cohort)
+        await cls._check_relationship_before_creation(data, 'group', Group)
 
     async def _after_creation(self, data: DictStrAny) -> None:
-        user = data.pop("user_obj")
-        await self.user_rel.connect(user)
-        self._relations["user"] = user
-
-        cohort = data.pop("cohort_obj")
-        await self.cohort_rel.connect(cohort)
-        self._relations["cohort"] = cohort
-
-        group = data.pop("group_obj", None)
-        if group:
-            await self.group_rel.connect(group)
-            self._relations["group"] = group
+        await self._update_relationship(data, 'user')
+        await self._update_relationship(data, 'cohort')
+        await self._update_relationship(data, 'group')

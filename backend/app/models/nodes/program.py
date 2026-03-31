@@ -8,7 +8,6 @@ from neomodel import (
 
 from ..base_node import BaseNode
 from ..enums import EducationForm, EducationLang, EducationLevel
-from ...exceptions import ForeignKeyException
 from ...utils.types import DictStrAny
 
 
@@ -40,15 +39,7 @@ class Program(BaseNode):
     async def _before_creation(cls, data: DictStrAny) -> None:
         from .faculty import Faculty
 
-        faculty_id = data.pop("faculty_id")
-        if not faculty_id:
-            raise ForeignKeyException()
-        faculty = await Faculty.get_by_id(faculty_id)
-        if faculty is None:
-            raise ForeignKeyException(node="Faculty", node_id=faculty_id)
-        data["faculty_obj"] = faculty
+        await cls._check_relationship_before_creation(data, 'faculty', Faculty)
 
     async def _after_creation(self, data: DictStrAny) -> None:
-        faculty = data.pop("faculty_obj")
-        await self.faculty_rel.connect(faculty)
-        self._relations["faculty"] = faculty
+        await self._update_relationship(data, 'faculty')

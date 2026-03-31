@@ -6,7 +6,6 @@ from neomodel import (
 )
 
 from ..base_node import BaseNode
-from ...exceptions import ForeignKeyException
 from ...utils.types import DictStrAny
 
 
@@ -38,26 +37,9 @@ class Teacher(BaseNode):
         from .user import User
         from .faculty import Faculty
 
-        user_id = data.pop("user_id", None)
-        faculty_id = data.pop("faculty_id", None)
-        if not user_id or not faculty_id:
-            raise ForeignKeyException()
-
-        user = await User.get_by_id(user_id)
-        if not user:
-            raise ForeignKeyException(node="User", node_id=user_id)
-        data['user_obj'] = user
-
-        faulty = await Faculty.get_by_id(faculty_id)
-        if not faulty:
-            raise ForeignKeyException(node="Faculty", node_id=faculty_id)
-        data['faculty_obj'] = faulty
+        await cls._check_relationship_before_creation(data, 'user', User)
+        await cls._check_relationship_before_creation(data, 'faculty', Faculty)
 
     async def _after_creation(self, data: DictStrAny) -> None:
-        user = data.pop("user_obj")
-        await self.user_rel.connect(user)
-        self._relations["user"] = user
-
-        faculty = data.pop("faculty_obj")
-        await self.faculty_rel.connect(faculty)
-        self._relations["faculty"] = faculty
+        await self._update_relationship(data, 'user')
+        await self._update_relationship(data, 'faculty')
