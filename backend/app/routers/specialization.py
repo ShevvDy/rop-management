@@ -22,7 +22,7 @@ async def get_specializations(skip: int = 0, limit: int = 100):
 @router.get("/{specialization_id}", response_model=SpecializationWithRelationsSchema)
 async def get_specialization(specialization_id: int):
     """Получить специализацию по ID"""
-    return await Specialization.get_by_id(specialization_id, relations=['cohort.program', 'groups', 'education_plan'])
+    return await Specialization.get_by_id(specialization_id, relations=['cohort.program', 'groups'])
 
 
 @router.put("/{specialization_id}", response_model=SpecializationResponseSchema)
