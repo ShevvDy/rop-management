@@ -29,13 +29,24 @@ import styles from './DashboardPage.module.css';
 /* ═══════════════════════════════════════════
    Dagre auto-layout
    ═══════════════════════════════════════════ */
-const NODE_WIDTH = 180;
-const NODE_HEIGHT = 100;
+const NODE_WIDTH = 230;
+const NODE_BASE_HEIGHT = 110;
+const LINE_HEIGHT = 18;
+const NAME_CHARS_PER_LINE = 18;
+
+const estimateNodeHeight = (node: Node<CourseNodeData>) => {
+    const name = node.data?.name ?? '';
+    const lines = Math.max(1, Math.ceil(name.length / NAME_CHARS_PER_LINE));
+    return NODE_BASE_HEIGHT + (lines - 1) * LINE_HEIGHT;
+};
 
 const getLayoutedElements = (nodes: Node<CourseNodeData>[], edges: Edge[], direction: 'TB' | 'BT' | 'LR' | 'RL' = 'BT') => {
     const g = new dagre.graphlib.Graph().setDefaultEdgeLabel(() => ({}));
-    g.setGraph({ rankdir: direction, nodesep: 60, ranksep: 80, edgesep: 30 });
-    nodes.forEach((node) => g.setNode(node.id, { width: NODE_WIDTH, height: NODE_HEIGHT }));
+    g.setGraph({ rankdir: direction, nodesep: 80, ranksep: 100, edgesep: 40, align: 'UL' });
+    nodes.forEach((node) => {
+        const h = estimateNodeHeight(node);
+        g.setNode(node.id, { width: NODE_WIDTH, height: h });
+    });
     edges.forEach((edge) => g.setEdge(edge.source, edge.target));
     dagre.layout(g);
 
@@ -44,7 +55,7 @@ const getLayoutedElements = (nodes: Node<CourseNodeData>[], edges: Edge[], direc
         const pos = g.node(node.id);
         return {
             ...node,
-            position: { x: pos.x - NODE_WIDTH / 2, y: pos.y - NODE_HEIGHT / 2 },
+            position: { x: pos.x - NODE_WIDTH / 2, y: pos.y - pos.height / 2 },
             targetPosition: isHorizontal ? Position.Left : Position.Bottom,
             sourcePosition: isHorizontal ? Position.Right : Position.Top,
         };
@@ -53,44 +64,112 @@ const getLayoutedElements = (nodes: Node<CourseNodeData>[], edges: Edge[], direc
 };
 
 /* ═══════════════════════════════════════════
-   Validation: check orphan nodes
+   Validation: check graph connectivity
+   - ВКР node: must have at least one incoming edge
+   - All other nodes: must have at least one outgoing edge (leading towards ВКР)
    ═══════════════════════════════════════════ */
-const findOrphanNodes = (nodes: Node[], edges: Edge[]): string[] => {
+const VKR_NODE_ID = 'vkr';
+
+const findInvalidNodes = (nodes: Node[], edges: Edge[]): string[] => {
     if (nodes.length <= 1) return [];
-    const connected = new Set<string>();
-    edges.forEach((e) => { connected.add(e.source); connected.add(e.target); });
-    return nodes.filter((n) => !connected.has(n.id)).map((n) => n.id);
+    const sources = new Set<string>();
+    const targets = new Set<string>();
+    edges.forEach((e) => { sources.add(e.source); targets.add(e.target); });
+
+    return nodes.filter((n) => {
+        if (n.id === VKR_NODE_ID) {
+            // ВКР must have at least one incoming edge
+            return !targets.has(n.id);
+        }
+        // All other nodes must have at least one outgoing edge
+        return !sources.has(n.id);
+    }).map((n) => n.id);
 };
 
 /* ═══════════════════════════════════════════
    Graph edit context (orphan tracking + node deletion)
    ═══════════════════════════════════════════ */
+/* ── Diff types for compare mode ── */
+type DiffStatus = 'same' | 'added' | 'removed';
+
+interface DiffInfo {
+    nodes: Record<string, DiffStatus>;
+    edges: Record<string, DiffStatus>;
+}
+
+const computeDiff = (
+    nodesA: Node<CourseNodeData>[], edgesA: Edge[],
+    nodesB: Node<CourseNodeData>[], edgesB: Edge[],
+): { diffA: DiffInfo; diffB: DiffInfo } => {
+    const nodeIdsA = new Set(nodesA.map((n) => n.id));
+    const nodeIdsB = new Set(nodesB.map((n) => n.id));
+    const edgeKeyA = new Set(edgesA.map((e) => `${e.source}->${e.target}`));
+    const edgeKeyB = new Set(edgesB.map((e) => `${e.source}->${e.target}`));
+
+    const diffA: DiffInfo = { nodes: {}, edges: {} };
+    const diffB: DiffInfo = { nodes: {}, edges: {} };
+
+    nodesA.forEach((n) => { diffA.nodes[n.id] = nodeIdsB.has(n.id) ? 'same' : 'added'; });
+    nodesB.forEach((n) => { diffB.nodes[n.id] = nodeIdsA.has(n.id) ? 'same' : 'added'; });
+
+    edgesA.forEach((e) => {
+        const k = `${e.source}->${e.target}`;
+        diffA.edges[e.id] = edgeKeyB.has(k) ? 'same' : 'added';
+    });
+    edgesB.forEach((e) => {
+        const k = `${e.source}->${e.target}`;
+        diffB.edges[e.id] = edgeKeyA.has(k) ? 'same' : 'added';
+    });
+
+    // Mark nodes from the OTHER side that are missing in THIS side
+    nodesB.forEach((n) => { if (!nodeIdsA.has(n.id)) diffA.nodes[`missing-${n.id}`] = 'removed'; });
+    nodesA.forEach((n) => { if (!nodeIdsB.has(n.id)) diffB.nodes[`missing-${n.id}`] = 'removed'; });
+
+    return { diffA, diffB };
+};
+
 const GraphEditContext = createContext<{
-    orphanIds: string[];
+    invalidIds: string[];
     onDeleteNode: (id: string) => void;
     onDeleteEdge: (id: string) => void;
-}>({ orphanIds: [], onDeleteNode: () => {}, onDeleteEdge: () => {} });
+    readOnly: boolean;
+    diff: DiffInfo | null;
+}>({ invalidIds: [], onDeleteNode: () => {}, onDeleteEdge: () => {}, readOnly: false, diff: null });
 
 type CourseNodeType = Node<CourseNodeData>;
 
 function DeletableCourseNode(props: NodeProps<CourseNodeType>) {
-    const { orphanIds, onDeleteNode } = useContext(GraphEditContext);
-    const isOrphan = orphanIds.includes(props.id);
+    const { invalidIds, onDeleteNode, readOnly, diff } = useContext(GraphEditContext);
+    const isInvalid = !readOnly && invalidIds.includes(props.id);
+    const isVkr = props.id === VKR_NODE_ID;
+
+    const diffStatus = diff?.nodes[props.id];
+    const diffClass = diffStatus === 'added' ? styles.nodeDiffAdded
+        : diffStatus === 'removed' ? styles.nodeDiffRemoved
+        : (diff && diffStatus === 'same') ? styles.nodeDiffSame : '';
 
     return (
-        <div className={`${styles.nodeWrapper} ${isOrphan ? styles.nodeOrphan : ''}`}>
+        <div className={`${styles.nodeWrapper} ${isInvalid ? styles.nodeOrphan : ''} ${diffClass}`}>
             <CourseNode {...props} />
-            <button
-                className={styles.nodeDeleteBtn}
-                onClick={(e) => { e.stopPropagation(); onDeleteNode(props.id); }}
-                title="Удалить предмет"
-            >
-                <svg width="12" height="12" viewBox="0 0 12 12" fill="none"><path d="M2.5 2.5l7 7M9.5 2.5l-7 7" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" /></svg>
-            </button>
-            {isOrphan && (
+            {!readOnly && !isVkr && (
+                <button
+                    className={styles.nodeDeleteBtn}
+                    onClick={(e) => { e.stopPropagation(); onDeleteNode(props.id); }}
+                    title="Удалить предмет"
+                >
+                    <svg width="12" height="12" viewBox="0 0 12 12" fill="none"><path d="M2.5 2.5l7 7M9.5 2.5l-7 7" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" /></svg>
+                </button>
+            )}
+            {isInvalid && (
                 <div className={styles.nodeOrphanBadge}>
                     <svg width="12" height="12" viewBox="0 0 12 12" fill="none"><path d="M6 1l5 10H1L6 1z" stroke="currentColor" strokeWidth="1.1" strokeLinejoin="round" /><path d="M6 4.5v2M6 8v.5" stroke="currentColor" strokeWidth="1.1" strokeLinecap="round" /></svg>
-                    Нет связей
+                    {isVkr ? 'Нет входящих' : 'Нет исходящих'}
+                </div>
+            )}
+            {diffStatus === 'added' && (
+                <div className={styles.nodeDiffBadge} data-status="added">
+                    <svg width="10" height="10" viewBox="0 0 10 10" fill="none"><path d="M5 2v6M2 5h6" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" /></svg>
+                    Только здесь
                 </div>
             )}
         </div>
@@ -98,14 +177,28 @@ function DeletableCourseNode(props: NodeProps<CourseNodeType>) {
 }
 
 function DeletableEdge({ id, sourceX, sourceY, targetX, targetY, sourcePosition: sp, targetPosition: tp, style: edgeStyleProp }: EdgeProps) {
-    const { onDeleteEdge } = useContext(GraphEditContext);
+    const { onDeleteEdge, readOnly, diff } = useContext(GraphEditContext);
     const [edgePath, lx, ly] = getSmoothStepPath({ sourceX, sourceY, sourcePosition: sp, targetX, targetY, targetPosition: tp });
+
+    const diffStatus = diff?.edges[id];
+    const diffEdgeStyle = diff
+        ? diffStatus === 'added'
+            ? { ...edgeStyleProp, stroke: '#16A34A', strokeWidth: 3 }
+            : { ...edgeStyleProp, stroke: '#D1D5DB', strokeWidth: 1.5, opacity: 0.6 }
+        : edgeStyleProp;
 
     return (
         <>
-            <BaseEdge path={edgePath} style={edgeStyleProp} />
+            <BaseEdge path={edgePath} style={diffEdgeStyle} />
             <EdgeLabelRenderer>
-                <button className={styles.edgeDeleteBtn} style={{ position: 'absolute', transform: `translate(-50%, -50%) translate(${lx}px,${ly}px)`, pointerEvents: 'all' }} onClick={(e) => { e.stopPropagation(); onDeleteEdge(id); }}>×</button>
+                {!readOnly && (
+                    <button className={styles.edgeDeleteBtn} style={{ position: 'absolute', transform: `translate(-50%, -50%) translate(${lx}px,${ly}px)`, pointerEvents: 'all' }} onClick={(e) => { e.stopPropagation(); onDeleteEdge(id); }}>×</button>
+                )}
+                {diffStatus === 'added' && (
+                    <div className={styles.edgeDiffBadge} style={{ position: 'absolute', transform: `translate(-50%, -50%) translate(${lx}px,${ly + 16}px)`, pointerEvents: 'none' }}>
+                        Новая связь
+                    </div>
+                )}
             </EdgeLabelRenderer>
         </>
     );
@@ -172,55 +265,112 @@ const yearPlans: Record<string, YearPlan[]> = {
 
 /* ── Course detail mocks (per year, simplified — same for demo) ── */
 const courseDetails: Record<string, CourseDetail> = {
-    cs201: { id: 'cs201', code: 'CS-201', name: 'Структуры данных и алгоритмы', semester: 'Осенний семестр', type: 'required', credits: 4, summary: 'Курс охватывает фундаментальные структуры данных, включая стеки, очереди, деревья и графы.', students: { avatars: ['https://api.dicebear.com/7.x/avataaars/svg?seed=Ann1&backgroundColor=b6e3f4', 'https://api.dicebear.com/7.x/avataaars/svg?seed=Dima2&backgroundColor=c0aede', 'https://api.dicebear.com/7.x/avataaars/svg?seed=Katya3&backgroundColor=ffd5dc'], total: 46 }, teachers: [{ name: 'Д-р Роберт Чен', role: 'Лектор', avatar: 'https://api.dicebear.com/7.x/avataaars/svg?seed=DrChen&backgroundColor=ffd5dc' }], materials: [{ name: 'Учебный_план_2024.pdf', size: '1.2 МБ', date: '2 дня назад', type: 'pdf' }, { name: 'Лекция_1_Слайды.pptx', size: '4.5 МБ', date: 'Вчера', type: 'pptx' }] },
-    cs101: { id: 'cs101', code: 'CS-101', name: 'Введение в программирование', semester: 'Осенний семестр', type: 'required', credits: 6, summary: 'Основы программирования на Python. Переменные, условия, циклы, функции, работа с файлами.', students: { avatars: ['https://api.dicebear.com/7.x/avataaars/svg?seed=Stud1&backgroundColor=ffd5dc', 'https://api.dicebear.com/7.x/avataaars/svg?seed=Stud2&backgroundColor=c0aede'], total: 120 }, teachers: [{ name: 'Проф. Алексей Иванов', role: 'Лектор', avatar: 'https://api.dicebear.com/7.x/avataaars/svg?seed=ProfIvanov&backgroundColor=b6e3f4' }], materials: [{ name: 'Программа_курса.pdf', size: '800 КБ', date: '1 нед. назад', type: 'pdf' }] },
-    mth202: { id: 'mth202', code: 'MTH-202', name: 'Линейная алгебра', semester: 'Весенний семестр', type: 'core', credits: 4, summary: 'Матрицы, определители, системы линейных уравнений. Векторные пространства.', students: { avatars: ['https://api.dicebear.com/7.x/avataaars/svg?seed=M1&backgroundColor=c0aede'], total: 85 }, teachers: [{ name: 'Доц. Мария Петрова', role: 'Лектор', avatar: 'https://api.dicebear.com/7.x/avataaars/svg?seed=DocPetrova&backgroundColor=c0aede' }], materials: [{ name: 'Лекции_ЛинАлгебра.pdf', size: '6.1 МБ', date: '5 дней назад', type: 'pdf' }] },
-    cs301: { id: 'cs301', code: 'CS-301', name: 'Базы данных', semester: 'Весенний семестр', type: 'required', credits: 4, summary: 'Реляционные БД, SQL, нормализация, индексирование. Введение в NoSQL.', students: { avatars: ['https://api.dicebear.com/7.x/avataaars/svg?seed=DB1&backgroundColor=b6e3f4'], total: 38 }, teachers: [{ name: 'Д-р Олег Сидоров', role: 'Практик', avatar: 'https://api.dicebear.com/7.x/avataaars/svg?seed=DrSidorov&backgroundColor=b6e3f4' }], materials: [{ name: 'SQL_Практикум.pdf', size: '2.3 МБ', date: 'Вчера', type: 'pdf' }] },
-    cs401: { id: 'cs401', code: 'CS-401', name: 'Машинное обучение', semester: 'Осенний семестр', type: 'elective', credits: 5, summary: 'Основы ML: регрессия, классификация, кластеризация, нейронные сети.', students: { avatars: ['https://api.dicebear.com/7.x/avataaars/svg?seed=ML1&backgroundColor=c0aede'], total: 28 }, teachers: [{ name: 'Проф. Елена Козлова', role: 'Лектор', avatar: 'https://api.dicebear.com/7.x/avataaars/svg?seed=ProfKozlova&backgroundColor=ffd5dc' }], materials: [{ name: 'ML_Учебник.pdf', size: '12 МБ', date: '1 нед. назад', type: 'pdf' }] },
-    mth101: { id: 'mth101', code: 'MTH-101', name: 'Математический анализ', semester: 'Осенний семестр', type: 'core', credits: 5, summary: 'Пределы, производные, интегралы. Ряды и дифференциальные уравнения.', students: { avatars: ['https://api.dicebear.com/7.x/avataaars/svg?seed=MA1&backgroundColor=b6e3f4', 'https://api.dicebear.com/7.x/avataaars/svg?seed=MA2&backgroundColor=c0aede'], total: 140 }, teachers: [{ name: 'Проф. Виктор Смирнов', role: 'Лектор', avatar: 'https://api.dicebear.com/7.x/avataaars/svg?seed=ProfSmirnov&backgroundColor=b6e3f4' }], materials: [{ name: 'Матанализ_Лекции.pdf', size: '9.5 МБ', date: '3 дня назад', type: 'pdf' }] },
-    cs302: { id: 'cs302', code: 'CS-302', name: 'Компьютерные сети', semester: 'Весенний семестр', type: 'required', credits: 3, summary: 'Модели OSI и TCP/IP. Протоколы маршрутизации, DNS, HTTP/HTTPS.', students: { avatars: ['https://api.dicebear.com/7.x/avataaars/svg?seed=Net1&backgroundColor=c0aede'], total: 32 }, teachers: [{ name: 'Доц. Андрей Волков', role: 'Практик', avatar: 'https://api.dicebear.com/7.x/avataaars/svg?seed=DocVolkov&backgroundColor=b6e3f4' }], materials: [{ name: 'Сети_Практикум.pdf', size: '3.2 МБ', date: 'Вчера', type: 'pdf' }] },
+    cs101: { id: 'cs101', code: 'CS-101', name: 'Введение в программирование', semester: 'Осенний семестр', type: 'required', credits: 6, summary: 'Основы программирования на Python. Переменные, условия, циклы, функции, работа с файлами.', students: { avatars: ['https://api.dicebear.com/7.x/avataaars/svg?seed=Stud1&backgroundColor=ffd5dc', 'https://api.dicebear.com/7.x/avataaars/svg?seed=Stud2&backgroundColor=c0aede', 'https://api.dicebear.com/7.x/avataaars/svg?seed=Stud3&backgroundColor=b6e3f4'], total: 120 }, teachers: [{ name: 'Проф. Алексей Иванов', role: 'Лектор', avatar: 'https://api.dicebear.com/7.x/avataaars/svg?seed=ProfIvanov&backgroundColor=b6e3f4' }], materials: [{ name: 'Программа_курса.pdf', size: '800 КБ', date: '1 нед. назад', type: 'pdf' }] },
+    mth101: { id: 'mth101', code: 'MTH-101', name: 'Математический анализ', semester: 'Осенний семестр', type: 'required', credits: 5, summary: 'Пределы, производные, интегралы. Ряды и дифференциальные уравнения.', students: { avatars: ['https://api.dicebear.com/7.x/avataaars/svg?seed=MA1&backgroundColor=b6e3f4', 'https://api.dicebear.com/7.x/avataaars/svg?seed=MA2&backgroundColor=c0aede'], total: 140 }, teachers: [{ name: 'Проф. Виктор Смирнов', role: 'Лектор', avatar: 'https://api.dicebear.com/7.x/avataaars/svg?seed=ProfSmirnov&backgroundColor=b6e3f4' }], materials: [{ name: 'Матанализ_Лекции.pdf', size: '9.5 МБ', date: '3 дня назад', type: 'pdf' }] },
+    mth102: { id: 'mth102', code: 'MTH-102', name: 'Дискретная математика', semester: 'Осенний семестр', type: 'required', credits: 4, summary: 'Логика, множества, комбинаторика, теория графов. Основы для алгоритмов.', students: { avatars: ['https://api.dicebear.com/7.x/avataaars/svg?seed=DM1&backgroundColor=c0aede', 'https://api.dicebear.com/7.x/avataaars/svg?seed=DM2&backgroundColor=ffd5dc'], total: 115 }, teachers: [{ name: 'Доц. Ирина Белова', role: 'Лектор', avatar: 'https://api.dicebear.com/7.x/avataaars/svg?seed=DocBelova&backgroundColor=ffd5dc' }], materials: [{ name: 'Дискретка_Конспект.pdf', size: '3.8 МБ', date: '4 дня назад', type: 'pdf' }] },
+    cs201: { id: 'cs201', code: 'CS-201', name: 'Алгоритмы и структуры данных', semester: 'Весенний семестр', type: 'required', credits: 5, summary: 'Фундаментальные структуры данных: стеки, очереди, деревья, графы. Анализ сложности.', students: { avatars: ['https://api.dicebear.com/7.x/avataaars/svg?seed=Ann1&backgroundColor=b6e3f4', 'https://api.dicebear.com/7.x/avataaars/svg?seed=Dima2&backgroundColor=c0aede', 'https://api.dicebear.com/7.x/avataaars/svg?seed=Katya3&backgroundColor=ffd5dc'], total: 96 }, teachers: [{ name: 'Д-р Роберт Чен', role: 'Лектор', avatar: 'https://api.dicebear.com/7.x/avataaars/svg?seed=DrChen&backgroundColor=ffd5dc' }], materials: [{ name: 'Учебный_план_2024.pdf', size: '1.2 МБ', date: '2 дня назад', type: 'pdf' }, { name: 'Лекция_1_Слайды.pptx', size: '4.5 МБ', date: 'Вчера', type: 'pptx' }] },
+    mth202: { id: 'mth202', code: 'MTH-202', name: 'Линейная алгебра', semester: 'Весенний семестр', type: 'required', credits: 4, summary: 'Матрицы, определители, системы линейных уравнений. Векторные пространства.', students: { avatars: ['https://api.dicebear.com/7.x/avataaars/svg?seed=M1&backgroundColor=c0aede'], total: 85 }, teachers: [{ name: 'Доц. Мария Петрова', role: 'Лектор', avatar: 'https://api.dicebear.com/7.x/avataaars/svg?seed=DocPetrova&backgroundColor=c0aede' }], materials: [{ name: 'Лекции_ЛинАлгебра.pdf', size: '6.1 МБ', date: '5 дней назад', type: 'pdf' }] },
+    cs301: { id: 'cs301', code: 'CS-301', name: 'Базы данных', semester: 'Осенний семестр', type: 'required', credits: 4, summary: 'Реляционные БД, SQL, нормализация, индексирование. Введение в NoSQL.', students: { avatars: ['https://api.dicebear.com/7.x/avataaars/svg?seed=DB1&backgroundColor=b6e3f4'], total: 38 }, teachers: [{ name: 'Д-р Олег Сидоров', role: 'Практик', avatar: 'https://api.dicebear.com/7.x/avataaars/svg?seed=DrSidorov&backgroundColor=b6e3f4' }], materials: [{ name: 'SQL_Практикум.pdf', size: '2.3 МБ', date: 'Вчера', type: 'pdf' }] },
+    cs302: { id: 'cs302', code: 'CS-302', name: 'Компьютерные сети', semester: 'Осенний семестр', type: 'required', credits: 3, summary: 'Модели OSI и TCP/IP. Протоколы маршрутизации, DNS, HTTP/HTTPS.', students: { avatars: ['https://api.dicebear.com/7.x/avataaars/svg?seed=Net1&backgroundColor=c0aede'], total: 32 }, teachers: [{ name: 'Доц. Андрей Волков', role: 'Практик', avatar: 'https://api.dicebear.com/7.x/avataaars/svg?seed=DocVolkov&backgroundColor=b6e3f4' }], materials: [{ name: 'Сети_Практикум.pdf', size: '3.2 МБ', date: 'Вчера', type: 'pdf' }] },
+    cs303: { id: 'cs303', code: 'CS-303', name: 'Операционные системы', semester: 'Осенний семестр', type: 'required', credits: 4, summary: 'Процессы, потоки, управление памятью, файловые системы. Ядро Linux.', students: { avatars: ['https://api.dicebear.com/7.x/avataaars/svg?seed=OS1&backgroundColor=b6e3f4', 'https://api.dicebear.com/7.x/avataaars/svg?seed=OS2&backgroundColor=ffd5dc'], total: 35 }, teachers: [{ name: 'Проф. Дмитрий Кузнецов', role: 'Лектор', avatar: 'https://api.dicebear.com/7.x/avataaars/svg?seed=ProfKuznetsov&backgroundColor=b6e3f4' }], materials: [{ name: 'ОС_Лабораторные.pdf', size: '5.1 МБ', date: '3 дня назад', type: 'pdf' }] },
+    cs401: { id: 'cs401', code: 'CS-401', name: 'Машинное обучение', semester: 'Весенний семестр', type: 'elective', credits: 5, summary: 'Основы ML: регрессия, классификация, кластеризация, нейронные сети.', students: { avatars: ['https://api.dicebear.com/7.x/avataaars/svg?seed=ML1&backgroundColor=c0aede'], total: 28 }, teachers: [{ name: 'Проф. Елена Козлова', role: 'Лектор', avatar: 'https://api.dicebear.com/7.x/avataaars/svg?seed=ProfKozlova&backgroundColor=ffd5dc' }], materials: [{ name: 'ML_Учебник.pdf', size: '12 МБ', date: '1 нед. назад', type: 'pdf' }] },
+    cs402: { id: 'cs402', code: 'CS-402', name: 'Веб-разработка', semester: 'Весенний семестр', type: 'elective', credits: 4, summary: 'Полный стек: React, Node.js, REST API, развёртывание приложений.', students: { avatars: ['https://api.dicebear.com/7.x/avataaars/svg?seed=Web1&backgroundColor=b6e3f4', 'https://api.dicebear.com/7.x/avataaars/svg?seed=Web2&backgroundColor=c0aede'], total: 42 }, teachers: [{ name: 'Доц. Никита Морозов', role: 'Практик', avatar: 'https://api.dicebear.com/7.x/avataaars/svg?seed=DocMorozov&backgroundColor=c0aede' }], materials: [{ name: 'React_Гайд.pdf', size: '2.8 МБ', date: '2 дня назад', type: 'pdf' }] },
+    cs403: { id: 'cs403', code: 'CS-403', name: 'Распределённые системы', semester: 'Весенний семестр', type: 'elective', credits: 5, summary: 'CAP-теорема, консенсус, репликация, шардирование. Kafka, gRPC.', students: { avatars: ['https://api.dicebear.com/7.x/avataaars/svg?seed=DS1&backgroundColor=ffd5dc'], total: 22 }, teachers: [{ name: 'Проф. Сергей Новиков', role: 'Лектор', avatar: 'https://api.dicebear.com/7.x/avataaars/svg?seed=ProfNovikov&backgroundColor=b6e3f4' }], materials: [{ name: 'Распред_Системы.pdf', size: '7.4 МБ', date: '5 дней назад', type: 'pdf' }] },
+    [VKR_NODE_ID]: { id: VKR_NODE_ID, code: 'ВКР', name: 'Выпускная квалификационная работа', semester: '8 семестр', type: 'required', credits: 12, summary: 'Итоговая квалификационная работа. Самостоятельное исследование или проект под руководством научного руководителя.', students: { avatars: [], total: 0 }, teachers: [], materials: [] },
 };
 
-/* Variant B nodes — for comparison (slightly different plan) */
+/*
+   Graph structure (BT = bottom-to-top):
+
+   ВКР (top):                          ВКР
+                                      ↑     ↑
+   Semester 4:        CS-401 Машинное обучение    CS-402 Веб-разработка
+                            ↑         ↑                  ↑        ↑
+   Semester 3:        CS-301 БД    CS-302 Сети    CS-303 Операционные системы
+                         ↑    ↑       ↑              ↑
+   Semester 2:        CS-201 Алгоритмы          MTH-202 Линейная алгебра
+                       ↑        ↑                    ↑
+   Semester 1 (bottom): CS-101 Программирование  MTH-101 Матанализ  MTH-102 Дискретная математика
+*/
+
+const p = { x: 0, y: 0 };
+
 const nodesVariantA: Node<CourseNodeData>[] = [
-    { id: 'cs101', type: 'courseNode', position: { x: 100, y: 400 }, data: { code: 'CS-101', name: 'Введение в\nпрограммирование', credits: 6, type: 'required', semester: '1 семестр' } },
-    { id: 'mth101', type: 'courseNode', position: { x: 500, y: 450 }, data: { code: 'MTH-101', name: 'Математический\nанализ', credits: 5, type: 'core', semester: '1 семестр' } },
-    { id: 'cs201', type: 'courseNode', position: { x: 250, y: 220 }, data: { code: 'CS-201', name: 'Структуры данных и\nалгоритмы', credits: 4, type: 'required', semester: '2 семестр' } },
-    { id: 'mth202', type: 'courseNode', position: { x: 500, y: 580 }, data: { code: 'MTH-202', name: 'Линейная алгебра', credits: 4, type: 'core', semester: '2 семестр' } },
-    { id: 'cs301', type: 'courseNode', position: { x: 50, y: 50 }, data: { code: 'CS-301', name: 'Базы данных', credits: 4, type: 'required', semester: '3 семестр' } },
-    { id: 'cs302', type: 'courseNode', position: { x: 450, y: 50 }, data: { code: 'CS-302', name: 'Компьютерные сети', credits: 3, type: 'required', semester: '3 семестр' } },
-    { id: 'cs401', type: 'courseNode', position: { x: 250, y: -130 }, data: { code: 'CS-401', name: 'Машинное обучение', credits: 5, type: 'elective', semester: '4 семестр' } },
+    /* Семестр 1 — фундамент */
+    { id: 'cs101',  type: 'courseNode', position: p, data: { code: 'CS-101',  name: 'Введение в программирование', credits: 6, type: 'required', semester: '1 семестр' } },
+    { id: 'mth101', type: 'courseNode', position: p, data: { code: 'MTH-101', name: 'Математический анализ',       credits: 5, type: 'required',     semester: '1 семестр' } },
+    { id: 'mth102', type: 'courseNode', position: p, data: { code: 'MTH-102', name: 'Дискретная математика',        credits: 4, type: 'required',     semester: '1 семестр' } },
+    /* Семестр 2 */
+    { id: 'cs201',  type: 'courseNode', position: p, data: { code: 'CS-201',  name: 'Алгоритмы и структуры данных', credits: 5, type: 'required', semester: '2 семестр' } },
+    { id: 'mth202', type: 'courseNode', position: p, data: { code: 'MTH-202', name: 'Линейная алгебра',             credits: 4, type: 'required',     semester: '2 семестр' } },
+    /* Семестр 3 */
+    { id: 'cs301',  type: 'courseNode', position: p, data: { code: 'CS-301',  name: 'Базы данных',                  credits: 4, type: 'required', semester: '3 семестр' } },
+    { id: 'cs302',  type: 'courseNode', position: p, data: { code: 'CS-302',  name: 'Компьютерные сети',            credits: 3, type: 'required', semester: '3 семестр' } },
+    { id: 'cs303',  type: 'courseNode', position: p, data: { code: 'CS-303',  name: 'Операционные системы',         credits: 4, type: 'required', semester: '3 семестр' } },
+    /* Семестр 4 — продвинутые */
+    { id: 'cs401',  type: 'courseNode', position: p, data: { code: 'CS-401',  name: 'Машинное обучение',            credits: 5, type: 'elective', semester: '4 семестр' } },
+    { id: 'cs402',  type: 'courseNode', position: p, data: { code: 'CS-402',  name: 'Веб-разработка',               credits: 4, type: 'elective', semester: '4 семестр' } },
+    /* ВКР */
+    { id: VKR_NODE_ID, type: 'courseNode', position: p, data: { code: 'ВКР', name: 'Выпускная квалификационная работа', credits: 12, type: 'required', semester: '8 семестр' } },
 ];
 
 const nodesVariantB: Node<CourseNodeData>[] = [
-    { id: 'cs101', type: 'courseNode', position: { x: 100, y: 400 }, data: { code: 'CS-101', name: 'Введение в\nпрограммирование', credits: 6, type: 'required', semester: '1 семестр' } },
-    { id: 'mth101', type: 'courseNode', position: { x: 500, y: 450 }, data: { code: 'MTH-101', name: 'Математический\nанализ', credits: 5, type: 'core', semester: '1 семестр' } },
-    { id: 'cs201', type: 'courseNode', position: { x: 250, y: 220 }, data: { code: 'CS-201', name: 'Структуры данных и\nалгоритмы', credits: 5, type: 'required', semester: '2 семестр' } },
-    { id: 'mth202', type: 'courseNode', position: { x: 500, y: 580 }, data: { code: 'MTH-202', name: 'Линейная алгебра', credits: 4, type: 'core', semester: '2 семестр' } },
-    { id: 'cs301', type: 'courseNode', position: { x: 50, y: 50 }, data: { code: 'CS-301', name: 'Базы данных', credits: 4, type: 'required', semester: '3 семестр' } },
-    { id: 'cs302', type: 'courseNode', position: { x: 450, y: 50 }, data: { code: 'CS-302', name: 'Компьютерные сети', credits: 4, type: 'required', semester: '3 семестр' } },
-    { id: 'cs402', type: 'courseNode', position: { x: 250, y: -130 }, data: { code: 'CS-402', name: 'Глубокое обучение', credits: 5, type: 'elective', semester: '4 семестр' } },
+    /* Семестр 1 */
+    { id: 'cs101',  type: 'courseNode', position: p, data: { code: 'CS-101',  name: 'Введение в программирование', credits: 6, type: 'required', semester: '1 семестр' } },
+    { id: 'mth101', type: 'courseNode', position: p, data: { code: 'MTH-101', name: 'Математический анализ',       credits: 5, type: 'required',     semester: '1 семестр' } },
+    { id: 'mth102', type: 'courseNode', position: p, data: { code: 'MTH-102', name: 'Дискретная математика',        credits: 4, type: 'required',     semester: '1 семестр' } },
+    /* Семестр 2 */
+    { id: 'cs201',  type: 'courseNode', position: p, data: { code: 'CS-201',  name: 'Алгоритмы и структуры данных', credits: 5, type: 'required', semester: '2 семестр' } },
+    { id: 'mth202', type: 'courseNode', position: p, data: { code: 'MTH-202', name: 'Линейная алгебра',             credits: 4, type: 'required',     semester: '2 семестр' } },
+    /* Семестр 3 */
+    { id: 'cs301',  type: 'courseNode', position: p, data: { code: 'CS-301',  name: 'Базы данных',                  credits: 4, type: 'required', semester: '3 семестр' } },
+    { id: 'cs302',  type: 'courseNode', position: p, data: { code: 'CS-302',  name: 'Компьютерные сети',            credits: 3, type: 'required', semester: '3 семестр' } },
+    { id: 'cs303',  type: 'courseNode', position: p, data: { code: 'CS-303',  name: 'Операционные системы',         credits: 4, type: 'required', semester: '3 семестр' } },
+    /* Семестр 4 — альтернатива: вместо Веб-разработки — Распределённые системы */
+    { id: 'cs401',  type: 'courseNode', position: p, data: { code: 'CS-401',  name: 'Машинное обучение',            credits: 5, type: 'elective', semester: '4 семестр' } },
+    { id: 'cs403',  type: 'courseNode', position: p, data: { code: 'CS-403',  name: 'Распределённые системы',       credits: 5, type: 'elective', semester: '4 семестр' } },
+    /* ВКР */
+    { id: VKR_NODE_ID, type: 'courseNode', position: p, data: { code: 'ВКР', name: 'Выпускная квалификационная работа', credits: 12, type: 'required', semester: '8 семестр' } },
 ];
 
 const edgeStyle = { stroke: '#CBD5E1', strokeWidth: 2 };
+
 const edgesMain: Edge[] = [
-    { id: 'e-cs101-cs201', source: 'cs101', target: 'cs201', type: 'deletable', style: edgeStyle },
-    { id: 'e-cs201-cs301', source: 'cs201', target: 'cs301', type: 'deletable', style: edgeStyle },
-    { id: 'e-cs201-cs302', source: 'cs201', target: 'cs302', type: 'deletable', style: edgeStyle },
-    { id: 'e-cs201-cs401', source: 'cs201', target: 'cs401', type: 'deletable', style: edgeStyle },
+    /* Семестр 1 → 2 */
+    { id: 'e-cs101-cs201',  source: 'cs101',  target: 'cs201',  type: 'deletable', style: edgeStyle },
+    { id: 'e-mth102-cs201', source: 'mth102', target: 'cs201',  type: 'deletable', style: edgeStyle },
     { id: 'e-mth101-mth202', source: 'mth101', target: 'mth202', type: 'deletable', style: edgeStyle },
-    { id: 'e-mth101-cs201', source: 'mth101', target: 'cs201', type: 'deletable', style: edgeStyle },
-    { id: 'e-mth202-cs401', source: 'mth202', target: 'cs401', type: 'deletable', style: edgeStyle },
+    /* Семестр 2 → 3 */
+    { id: 'e-cs201-cs301',  source: 'cs201',  target: 'cs301',  type: 'deletable', style: edgeStyle },
+    { id: 'e-cs201-cs302',  source: 'cs201',  target: 'cs302',  type: 'deletable', style: edgeStyle },
+    { id: 'e-cs201-cs303',  source: 'cs201',  target: 'cs303',  type: 'deletable', style: edgeStyle },
+    /* Семестр 3 → 4 */
+    { id: 'e-cs201-cs401',  source: 'cs201',  target: 'cs401',  type: 'deletable', style: edgeStyle },
+    { id: 'e-mth202-cs401', source: 'mth202', target: 'cs401',  type: 'deletable', style: edgeStyle },
+    { id: 'e-cs301-cs402',  source: 'cs301',  target: 'cs402',  type: 'deletable', style: edgeStyle },
+    { id: 'e-cs302-cs402',  source: 'cs302',  target: 'cs402',  type: 'deletable', style: edgeStyle },
+    /* → ВКР */
+    { id: 'e-cs401-vkr',    source: 'cs401',  target: VKR_NODE_ID, type: 'deletable', style: edgeStyle },
+    { id: 'e-cs402-vkr',    source: 'cs402',  target: VKR_NODE_ID, type: 'deletable', style: edgeStyle },
 ];
 
 const edgesVariantB: Edge[] = [
-    { id: 'e-cs101-cs201', source: 'cs101', target: 'cs201', type: 'deletable', style: edgeStyle },
-    { id: 'e-cs201-cs301', source: 'cs201', target: 'cs301', type: 'deletable', style: edgeStyle },
-    { id: 'e-cs201-cs302', source: 'cs201', target: 'cs302', type: 'deletable', style: edgeStyle },
-    { id: 'e-cs201-cs402', source: 'cs201', target: 'cs402', type: 'deletable', style: edgeStyle },
+    /* Семестр 1 → 2 */
+    { id: 'e-cs101-cs201',  source: 'cs101',  target: 'cs201',  type: 'deletable', style: edgeStyle },
+    { id: 'e-mth102-cs201', source: 'mth102', target: 'cs201',  type: 'deletable', style: edgeStyle },
     { id: 'e-mth101-mth202', source: 'mth101', target: 'mth202', type: 'deletable', style: edgeStyle },
-    { id: 'e-mth101-cs201', source: 'mth101', target: 'cs201', type: 'deletable', style: edgeStyle },
-    { id: 'e-mth202-cs402', source: 'mth202', target: 'cs402', type: 'deletable', style: edgeStyle },
+    /* Семестр 2 → 3 */
+    { id: 'e-cs201-cs301',  source: 'cs201',  target: 'cs301',  type: 'deletable', style: edgeStyle },
+    { id: 'e-cs201-cs302',  source: 'cs201',  target: 'cs302',  type: 'deletable', style: edgeStyle },
+    { id: 'e-cs201-cs303',  source: 'cs201',  target: 'cs303',  type: 'deletable', style: edgeStyle },
+    /* Семестр 3 → 4 */
+    { id: 'e-cs201-cs401',  source: 'cs201',  target: 'cs401',  type: 'deletable', style: edgeStyle },
+    { id: 'e-mth202-cs401', source: 'mth202', target: 'cs401',  type: 'deletable', style: edgeStyle },
+    { id: 'e-cs302-cs403',  source: 'cs302',  target: 'cs403',  type: 'deletable', style: edgeStyle },
+    { id: 'e-cs303-cs403',  source: 'cs303',  target: 'cs403',  type: 'deletable', style: edgeStyle },
+    /* → ВКР */
+    { id: 'e-cs401-vkr',    source: 'cs401',  target: VKR_NODE_ID, type: 'deletable', style: edgeStyle },
+    { id: 'e-cs403-vkr',    source: 'cs403',  target: VKR_NODE_ID, type: 'deletable', style: edgeStyle },
 ];
 
 /* ═══════════════════════════════════════════
@@ -236,6 +386,40 @@ const statusConfig: Record<string, { label: string; bg: string; color: string }>
 const { nodes: layoutedNodesA, edges: layoutedEdgesA } = getLayoutedElements(nodesVariantA, edgesMain);
 const { nodes: layoutedNodesB, edges: layoutedEdgesB } = getLayoutedElements(nodesVariantB, edgesVariantB);
 
+/* ── Default ВКР-only graph for new year plans ── */
+const vkrOnlyNode: Node<CourseNodeData> = { id: VKR_NODE_ID, type: 'courseNode', position: { x: 0, y: 0 }, data: { code: 'ВКР', name: 'Выпускная квалификационная работа', credits: 12, type: 'required', semester: '8 семестр' } };
+const emptyGraphNodes: Node<CourseNodeData>[] = [vkrOnlyNode];
+const emptyGraphEdges: Edge[] = [];
+const vkrDetail: CourseDetail = { id: VKR_NODE_ID, code: 'ВКР', name: 'Выпускная квалификационная работа', semester: '8 семестр', type: 'required', credits: 12, summary: 'Итоговая квалификационная работа. Самостоятельное исследование или проект под руководством научного руководителя.', students: { avatars: [], total: 0 }, teachers: [], materials: [] };
+
+/* ── Per-year-plan graph data store ── */
+interface YearGraphData {
+    nodes: Node<CourseNodeData>[];
+    edges: Edge[];
+    details: Record<string, CourseDetail>;
+}
+
+const initialGraphStore: Record<string, YearGraphData> = {
+    'se-2025': { nodes: layoutedNodesA, edges: layoutedEdgesA, details: courseDetails },
+    'se-2024': { nodes: layoutedNodesA, edges: layoutedEdgesA, details: courseDetails },
+    'se-2023': { nodes: layoutedNodesB, edges: layoutedEdgesB, details: courseDetails },
+    'se-2022': { nodes: layoutedNodesB, edges: layoutedEdgesB, details: courseDetails },
+    'cs-2024': { nodes: layoutedNodesA, edges: layoutedEdgesA, details: courseDetails },
+    'cs-2023': { nodes: layoutedNodesB, edges: layoutedEdgesB, details: courseDetails },
+    'cs-2022': { nodes: layoutedNodesA, edges: layoutedEdgesA, details: courseDetails },
+    'ai-2024': { nodes: layoutedNodesA, edges: layoutedEdgesA, details: courseDetails },
+    'ai-2023': { nodes: layoutedNodesB, edges: layoutedEdgesB, details: courseDetails },
+    'ds-2024': { nodes: layoutedNodesA, edges: layoutedEdgesA, details: courseDetails },
+    'ds-2023': { nodes: layoutedNodesB, edges: layoutedEdgesB, details: courseDetails },
+    'is-2024': { nodes: layoutedNodesA, edges: layoutedEdgesA, details: courseDetails },
+    'is-2023': { nodes: layoutedNodesB, edges: layoutedEdgesB, details: courseDetails },
+    'is-2022': { nodes: layoutedNodesA, edges: layoutedEdgesA, details: courseDetails },
+};
+
+const getGraphDataForYear = (store: Record<string, YearGraphData>, yearId: string): YearGraphData => {
+    return store[yearId] || { nodes: emptyGraphNodes, edges: emptyGraphEdges, details: { [VKR_NODE_ID]: vkrDetail } };
+};
+
 /* ═══════════════════════════════════════════
    Graph Panel (single React Flow instance)
    ═══════════════════════════════════════════ */
@@ -248,9 +432,11 @@ interface GraphPanelProps {
     onSelectCourse: (c: CourseDetail | null) => void;
     onDetailsChange: (d: Record<string, CourseDetail>) => void;
     compact?: boolean;
+    readOnly?: boolean;
+    diff?: DiffInfo | null;
 }
 
-const GraphPanelInner: React.FC<GraphPanelProps> = ({ label, labelColor, initNodes, initEdges, details, onSelectCourse, onDetailsChange, compact }) => {
+const GraphPanelInner: React.FC<GraphPanelProps> = ({ label, labelColor, initNodes, initEdges, details, onSelectCourse, onDetailsChange, compact, readOnly = false, diff = null }) => {
     const [nodes, setNodes, onNodesChange] = useNodesState(initNodes);
     const [edges, setEdges, onEdgesChange] = useEdgesState(initEdges);
     const { screenToFlowPosition, fitView } = useReactFlow();
@@ -266,17 +452,20 @@ const GraphPanelInner: React.FC<GraphPanelProps> = ({ label, labelColor, initNod
 
     const markDirty = useCallback(() => setIsDirty(true), []);
 
-    /* ── Orphan tracking (reactive) ── */
-    const orphanIds = useMemo(() => findOrphanNodes(nodes, edges), [nodes, edges]);
-    const hasOrphans = orphanIds.length > 0;
-    const orphanNames = useMemo(() =>
-        orphanIds.map((oid) => {
-            const n = nodes.find((nd) => nd.id === oid);
-            return n?.data?.name?.replace(/\n/g, ' ') || oid;
-        }), [orphanIds, nodes]);
+    /* ── Invalid nodes tracking (reactive) ── */
+    const invalidIds = useMemo(() => findInvalidNodes(nodes, edges), [nodes, edges]);
+    const hasInvalid = invalidIds.length > 0;
+    const invalidDescriptions = useMemo(() =>
+        invalidIds.map((id) => {
+            const n = nodes.find((nd) => nd.id === id);
+            const name = n?.data?.name?.replace(/\n/g, ' ') || id;
+            if (id === VKR_NODE_ID) return `${name} (нет входящих связей)`;
+            return `${name} (нет исходящих связей)`;
+        }), [invalidIds, nodes]);
 
     /* ── Delete node handler ── */
     const handleDeleteNode = useCallback((nodeId: string) => {
+        if (nodeId === VKR_NODE_ID) return;
         setNodes((nds) => nds.filter((n) => n.id !== nodeId));
         setEdges((eds) => eds.filter((e) => e.source !== nodeId && e.target !== nodeId));
         const newDetails = { ...details };
@@ -388,34 +577,38 @@ const GraphPanelInner: React.FC<GraphPanelProps> = ({ label, labelColor, initNod
     }, [nodes, edges]);
 
     return (
-        <GraphEditContext.Provider value={{ orphanIds, onDeleteNode: handleDeleteNode, onDeleteEdge: handleDeleteEdge }}>
+        <GraphEditContext.Provider value={{ invalidIds, onDeleteNode: handleDeleteNode, onDeleteEdge: handleDeleteEdge, readOnly, diff }}>
         <div className={`${styles.graphPanel} ${compact ? styles.graphPanelCompact : ''}`}>
             <div className={styles.graphPanelLabel} style={labelColor ? { borderLeftColor: labelColor } : undefined}>
                 {label}
+                {readOnly && <span className={styles.readOnlyBadge}>Только просмотр</span>}
             </div>
 
             {/* Orphan warning banner */}
-            {hasOrphans && (
+            {!readOnly && hasInvalid && (
                 <div className={styles.orphanBanner}>
                     <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M8 1.5l6.5 13H1.5L8 1.5z" stroke="currentColor" strokeWidth="1.3" strokeLinejoin="round" /><path d="M8 6v3M8 11v.5" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" /></svg>
-                    <span>Без связей: <strong>{orphanNames.join(', ')}</strong> — сохранение заблокировано</span>
+                    <span>Проблемы связей: <strong>{invalidDescriptions.join(', ')}</strong> — сохранение заблокировано</span>
                 </div>
             )}
 
             <ReactFlow
                 nodes={nodes}
                 edges={edges}
-                onNodesChange={handleNodesChange}
-                onEdgesChange={onEdgesChange}
+                onNodesChange={readOnly ? undefined : handleNodesChange}
+                onEdgesChange={readOnly ? undefined : onEdgesChange}
                 onNodeClick={onNodeClick}
-                onConnect={onConnect}
-                onReconnectStart={onReconnectStart}
-                onReconnect={onReconnect}
-                onReconnectEnd={onReconnectEnd}
-                onEdgeDoubleClick={onEdgeDoubleClick}
-                edgesReconnectable
+                onConnect={readOnly ? undefined : onConnect}
+                onReconnectStart={readOnly ? undefined : onReconnectStart}
+                onReconnect={readOnly ? undefined : onReconnect}
+                onReconnectEnd={readOnly ? undefined : onReconnectEnd}
+                onEdgeDoubleClick={readOnly ? undefined : onEdgeDoubleClick}
+                edgesReconnectable={!readOnly}
+                nodesDraggable={!readOnly}
+                nodesConnectable={!readOnly}
+                elementsSelectable={!readOnly}
                 onPaneClick={onPaneClick}
-                onPaneContextMenu={onPaneContextMenu}
+                onPaneContextMenu={readOnly ? undefined : onPaneContextMenu}
                 nodeTypes={nodeTypes}
                 edgeTypes={edgeTypes}
                 isValidConnection={(c) => c.source !== c.target}
@@ -427,32 +620,34 @@ const GraphPanelInner: React.FC<GraphPanelProps> = ({ label, labelColor, initNod
                 {!compact && <Controls showInteractive={false} />}
 
                 {/* Toolbar panel */}
-                <Panel position="top-right" className={styles.graphToolbar}>
-                    <button className={styles.toolbarBtn} onClick={() => onAutoLayout('BT')} title="Авто-раскладка (вертикальная)">
-                        <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><rect x="5.5" y="0.5" width="5" height="3" rx="0.75" stroke="currentColor" strokeWidth="1.1" /><rect x="0.5" y="12.5" width="5" height="3" rx="0.75" stroke="currentColor" strokeWidth="1.1" /><rect x="10.5" y="12.5" width="5" height="3" rx="0.75" stroke="currentColor" strokeWidth="1.1" /><path d="M8 3.5V9M8 9l-5 3.5M8 9l5 3.5" stroke="currentColor" strokeWidth="1.1" /></svg>
-                        Авто
-                    </button>
-                    <button className={styles.toolbarBtn} onClick={() => onAutoLayout('LR')} title="Авто-раскладка (горизонтальная)">
-                        <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><rect x="0.5" y="5.5" width="3" height="5" rx="0.75" stroke="currentColor" strokeWidth="1.1" /><rect x="12.5" y="0.5" width="3" height="5" rx="0.75" stroke="currentColor" strokeWidth="1.1" /><rect x="12.5" y="10.5" width="3" height="5" rx="0.75" stroke="currentColor" strokeWidth="1.1" /><path d="M3.5 8H9M9 8l3.5-5M9 8l3.5 5" stroke="currentColor" strokeWidth="1.1" /></svg>
-                    </button>
-                    <div className={styles.toolbarDivider} />
-                    <button
-                        className={`${styles.toolbarBtn} ${styles.toolbarBtnSave} ${isDirty ? styles.toolbarBtnDirty : ''} ${hasOrphans && isDirty ? styles.toolbarBtnBlocked : ''}`}
-                        onClick={handleSaveGraph}
-                        disabled={!isDirty || isSaving || hasOrphans}
-                        title={hasOrphans ? 'Есть предметы без связей' : isDirty ? 'Сохранить изменения' : 'Нет изменений'}
-                    >
-                        {isSaving ? (
-                            <svg className={styles.spinnerIcon} width="16" height="16" viewBox="0 0 16 16" fill="none"><circle cx="8" cy="8" r="6" stroke="currentColor" strokeWidth="1.5" strokeDasharray="28" strokeDashoffset="8" strokeLinecap="round" /></svg>
-                        ) : (
-                            <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M13.333 2H4L2 4v9.333C2 13.7 2.3 14 2.667 14h10.666c.368 0 .667-.3.667-.667V2.667C14 2.3 13.7 2 13.333 2z" stroke="currentColor" strokeWidth="1.2" /><path d="M5.333 2v4h5.334V2M4.667 14V9.333h6.666V14" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" /></svg>
-                        )}
-                        Сохранить
-                    </button>
-                </Panel>
+                {!readOnly && (
+                    <Panel position="top-right" className={styles.graphToolbar}>
+                        <button className={styles.toolbarBtn} onClick={() => onAutoLayout('BT')} title="Авто-раскладка (вертикальная)">
+                            <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><rect x="5.5" y="0.5" width="5" height="3" rx="0.75" stroke="currentColor" strokeWidth="1.1" /><rect x="0.5" y="12.5" width="5" height="3" rx="0.75" stroke="currentColor" strokeWidth="1.1" /><rect x="10.5" y="12.5" width="5" height="3" rx="0.75" stroke="currentColor" strokeWidth="1.1" /><path d="M8 3.5V9M8 9l-5 3.5M8 9l5 3.5" stroke="currentColor" strokeWidth="1.1" /></svg>
+                            Авто
+                        </button>
+                        <button className={styles.toolbarBtn} onClick={() => onAutoLayout('LR')} title="Авто-раскладка (горизонтальная)">
+                            <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><rect x="0.5" y="5.5" width="3" height="5" rx="0.75" stroke="currentColor" strokeWidth="1.1" /><rect x="12.5" y="0.5" width="3" height="5" rx="0.75" stroke="currentColor" strokeWidth="1.1" /><rect x="12.5" y="10.5" width="3" height="5" rx="0.75" stroke="currentColor" strokeWidth="1.1" /><path d="M3.5 8H9M9 8l3.5-5M9 8l3.5 5" stroke="currentColor" strokeWidth="1.1" /></svg>
+                        </button>
+                        <div className={styles.toolbarDivider} />
+                        <button
+                            className={`${styles.toolbarBtn} ${styles.toolbarBtnSave} ${isDirty ? styles.toolbarBtnDirty : ''} ${hasInvalid && isDirty ? styles.toolbarBtnBlocked : ''}`}
+                            onClick={handleSaveGraph}
+                            disabled={!isDirty || isSaving || hasInvalid}
+                            title={hasInvalid ? 'Есть проблемы со связями' : isDirty ? 'Сохранить изменения' : 'Нет изменений'}
+                        >
+                            {isSaving ? (
+                                <svg className={styles.spinnerIcon} width="16" height="16" viewBox="0 0 16 16" fill="none"><circle cx="8" cy="8" r="6" stroke="currentColor" strokeWidth="1.5" strokeDasharray="28" strokeDashoffset="8" strokeLinecap="round" /></svg>
+                            ) : (
+                                <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M13.333 2H4L2 4v9.333C2 13.7 2.3 14 2.667 14h10.666c.368 0 .667-.3.667-.667V2.667C14 2.3 13.7 2 13.333 2z" stroke="currentColor" strokeWidth="1.2" /><path d="M5.333 2v4h5.334V2M4.667 14V9.333h6.666V14" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" /></svg>
+                            )}
+                            Сохранить
+                        </button>
+                    </Panel>
+                )}
             </ReactFlow>
 
-            {menu && (
+            {!readOnly && menu && (
                 <div ref={menuRef} className={styles.contextMenu} style={{ top: menu.y, left: menu.x }}>
                     <button className={styles.contextMenuItem} onClick={openAddDialog}>
                         <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M7 2v10M2 7h10" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" /></svg>
@@ -461,7 +656,7 @@ const GraphPanelInner: React.FC<GraphPanelProps> = ({ label, labelColor, initNod
                 </div>
             )}
 
-            {dialog && (
+            {!readOnly && dialog && (
                 <div className={styles.dialogOverlay} onClick={() => setDialog(false)}>
                     <div className={styles.dialog} onClick={(e) => e.stopPropagation()}>
                         <div className={styles.dialogHeader}>
@@ -481,7 +676,6 @@ const GraphPanelInner: React.FC<GraphPanelProps> = ({ label, labelColor, initNod
                                     <select className={styles.dialogSelect} value={form.type} onChange={(e) => setForm((f) => ({ ...f, type: e.target.value as CourseNodeData['type'] }))}>
                                         <option value="required">Обязательный</option>
                                         <option value="elective">По выбору</option>
-                                        <option value="core">Базовый</option>
                                     </select>
                                 </div>
                                 <div className={styles.dialogField}>
@@ -626,8 +820,7 @@ const DashboardPage: React.FC = () => {
     const [selectedProgram, setSelectedProgram] = useState<Program | null>(null);
     const [selectedYears, setSelectedYears] = useState<YearPlan[]>([]);
     const [selectedCourse, setSelectedCourse] = useState<CourseDetail | null>(null);
-    const [detailsA, setDetailsA] = useState(courseDetails);
-    const [detailsB, setDetailsB] = useState(courseDetails);
+    const [graphStore, setGraphStore] = useState(initialGraphStore);
     const [showCreateProgram, setShowCreateProgram] = useState(false);
     const [showCreateYear, setShowCreateYear] = useState(false);
 
@@ -656,11 +849,27 @@ const DashboardPage: React.FC = () => {
     };
 
     const handleSave = useCallback((updated: CourseDetail) => {
-        setDetailsA((prev) => ({ ...prev, [updated.id]: updated }));
+        if (selectedYears.length > 0) {
+            const yearId = selectedYears[0].id;
+            setGraphStore((prev) => ({
+                ...prev,
+                [yearId]: {
+                    ...getGraphDataForYear(prev, yearId),
+                    details: { ...getGraphDataForYear(prev, yearId).details, [updated.id]: updated },
+                },
+            }));
+        }
         setSelectedCourse(updated);
-    }, []);
+    }, [selectedYears]);
 
     const isCompare = selectedYears.length === 2;
+
+    const compareDiff = useMemo(() => {
+        if (!isCompare) return null;
+        const dataA = getGraphDataForYear(graphStore, selectedYears[0].id);
+        const dataB = getGraphDataForYear(graphStore, selectedYears[1].id);
+        return computeDiff(dataA.nodes, dataA.edges, dataB.nodes, dataB.edges);
+    }, [isCompare, graphStore, selectedYears]);
 
     return (
         <div className={styles.page}>
@@ -836,18 +1045,28 @@ const DashboardPage: React.FC = () => {
                             <div className={styles.legendItem}><span className={styles.legendDot} style={{ background: '#135BEC' }} /><span>Обязательно</span></div>
                             <div className={styles.legendItem}><span className={styles.legendDot} style={{ background: '#F59E0B' }} /><span>По выбору</span></div>
                             <div className={styles.legendItem}><span className={styles.legendLine} /><span>Связь</span></div>
+                            {isCompare && (
+                                <>
+                                    <div className={styles.legendDivider} />
+                                    <div className={styles.legendItem}><span className={styles.legendDot} style={{ background: '#16A34A', boxShadow: '0 0 6px rgba(22,163,74,0.4)' }} /><span>Уникальное</span></div>
+                                    <div className={styles.legendItem}><span className={styles.legendDot} style={{ background: '#94A3B8', opacity: 0.5 }} /><span>Общее</span></div>
+                                </>
+                            )}
                         </div>
                     </div>
 
                     <GraphPanel
+                        key={selectedYears[0].id}
                         label={selectedYears[0].label}
                         labelColor={selectedProgram.color}
-                        initNodes={layoutedNodesA}
-                        initEdges={layoutedEdgesA}
-                        details={detailsA}
+                        initNodes={getGraphDataForYear(graphStore, selectedYears[0].id).nodes}
+                        initEdges={getGraphDataForYear(graphStore, selectedYears[0].id).edges}
+                        details={getGraphDataForYear(graphStore, selectedYears[0].id).details}
                         onSelectCourse={setSelectedCourse}
-                        onDetailsChange={setDetailsA}
+                        onDetailsChange={(d) => setGraphStore((prev) => ({ ...prev, [selectedYears[0].id]: { ...getGraphDataForYear(prev, selectedYears[0].id), details: d } }))}
                         compact={isCompare}
+                        readOnly={isCompare}
+                        diff={compareDiff?.diffA}
                     />
 
                     {isCompare && (
@@ -856,14 +1075,17 @@ const DashboardPage: React.FC = () => {
                                 <span className={styles.compareDividerLabel}>VS</span>
                             </div>
                             <GraphPanel
+                                key={selectedYears[1].id}
                                 label={selectedYears[1].label}
                                 labelColor="#D97706"
-                                initNodes={layoutedNodesB}
-                                initEdges={layoutedEdgesB}
-                                details={detailsB}
+                                initNodes={getGraphDataForYear(graphStore, selectedYears[1].id).nodes}
+                                initEdges={getGraphDataForYear(graphStore, selectedYears[1].id).edges}
+                                details={getGraphDataForYear(graphStore, selectedYears[1].id).details}
                                 onSelectCourse={setSelectedCourse}
-                                onDetailsChange={setDetailsB}
+                                onDetailsChange={(d) => setGraphStore((prev) => ({ ...prev, [selectedYears[1].id]: { ...getGraphDataForYear(prev, selectedYears[1].id), details: d } }))}
                                 compact
+                                readOnly
+                                diff={compareDiff?.diffB}
                             />
                         </>
                     )}

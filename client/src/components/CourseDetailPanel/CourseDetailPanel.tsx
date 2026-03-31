@@ -5,7 +5,8 @@ interface Material {
     name: string;
     size: string;
     date: string;
-    type: 'pdf' | 'pptx' | 'doc' | 'excel' | 'image' | 'video' | 'audio' | 'archive' | 'code';
+    type: 'pdf' | 'pptx' | 'doc' | 'excel' | 'image' | 'video' | 'audio' | 'archive' | 'code' | 'link';
+    url?: string;
 }
 
 interface Teacher {
@@ -19,7 +20,7 @@ interface CourseDetail {
     code: string;
     name: string;
     semester: string;
-    type: 'required' | 'elective' | 'core';
+    type: 'required' | 'elective';
     credits: number;
     summary: string;
     students: { avatars: string[]; total: number };
@@ -36,7 +37,6 @@ interface CourseDetailPanelProps {
 const typeLabels: Record<string, { label: string; bg: string; color: string }> = {
     required: { label: 'ОБЯЗАТЕЛЬНО', bg: '#135BEC', color: '#fff' },
     elective: { label: 'ПО ВЫБОРУ', bg: '#F59E0B', color: '#fff' },
-    core: { label: 'БАЗОВЫЙ', bg: '#F1F5F9', color: '#64748B' },
 };
 
 const iconBox = (bg: string, children: React.ReactNode) => (
@@ -72,6 +72,9 @@ const materialIcons: Record<Material['type'], React.ReactNode> = {
     ),
     code: iconBox('#FEF3C7',
         <svg width="18" height="18" viewBox="0 0 18 18" fill="none"><path d="M6.75 5.25L3 9l3.75 3.75M11.25 5.25L15 9l-3.75 3.75" stroke="#F59E0B" strokeWidth="1.3" strokeLinecap="round" strokeLinejoin="round" /></svg>
+    ),
+    link: iconBox('#DBEAFE',
+        <svg width="18" height="18" viewBox="0 0 18 18" fill="none"><path d="M7.5 10.5a3.75 3.75 0 005.3 0l1.88-1.88a3.75 3.75 0 00-5.3-5.3L8.25 4.44" stroke="#3B82F6" strokeWidth="1.3" strokeLinecap="round" strokeLinejoin="round" /><path d="M10.5 7.5a3.75 3.75 0 00-5.3 0L3.32 9.38a3.75 3.75 0 005.3 5.3l1.13-1.13" stroke="#3B82F6" strokeWidth="1.3" strokeLinecap="round" strokeLinejoin="round" /></svg>
     ),
 };
 
@@ -490,12 +493,97 @@ const AddTeacherModal: React.FC<AddTeacherModalProps> = ({ onClose, onAdd, exist
     );
 };
 
+/* ── Add Link Modal ── */
+interface AddLinkModalProps {
+    onClose: () => void;
+    onAdd: (material: Material) => void;
+}
+
+const AddLinkModal: React.FC<AddLinkModalProps> = ({ onClose, onAdd }) => {
+    const [name, setName] = useState('');
+    const [url, setUrl] = useState('');
+
+    useEffect(() => {
+        const handleKey = (e: KeyboardEvent) => { if (e.key === 'Escape') onClose(); };
+        document.addEventListener('keydown', handleKey);
+        return () => document.removeEventListener('keydown', handleKey);
+    }, [onClose]);
+
+    const handleSubmit = (e: React.FormEvent) => {
+        e.preventDefault();
+        if (!name.trim() || !url.trim()) return;
+        const now = new Date();
+        const dateStr = now.toLocaleDateString('ru-RU', { day: '2-digit', month: '2-digit', year: 'numeric' });
+        onAdd({ name: name.trim(), size: '', date: dateStr, type: 'link', url: url.trim() });
+    };
+
+    const isValid = name.trim().length > 0 && url.trim().length > 0;
+
+    return (
+        <div className={styles.modalBackdrop} onClick={onClose}>
+            <div className={styles.modal} onClick={(e) => e.stopPropagation()}>
+                <div className={styles.modalHeader}>
+                    <div className={styles.modalHeaderIcon}>
+                        <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
+                            <path d="M8.33 11.67a4.17 4.17 0 005.89 0l2.08-2.09a4.17 4.17 0 00-5.89-5.89l-1.25 1.25" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round" />
+                            <path d="M11.67 8.33a4.17 4.17 0 00-5.89 0L3.7 10.42a4.17 4.17 0 005.89 5.89l1.25-1.25" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round" />
+                        </svg>
+                    </div>
+                    <h3 className={styles.modalTitle}>Добавить ссылку</h3>
+                    <button className={styles.modalClose} onClick={onClose}>
+                        <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
+                            <path d="M5 5l10 10M15 5L5 15" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
+                        </svg>
+                    </button>
+                </div>
+
+                <form className={styles.modalBody} onSubmit={handleSubmit}>
+                    <div className={styles.modalField}>
+                        <label className={styles.modalLabel}>Название</label>
+                        <input
+                            className={styles.modalInput}
+                            value={name}
+                            onChange={(e) => setName(e.target.value)}
+                            placeholder="Например: Лекция на YouTube"
+                            autoFocus
+                            required
+                        />
+                    </div>
+                    <div className={styles.modalField}>
+                        <label className={styles.modalLabel}>URL</label>
+                        <input
+                            className={styles.modalInput}
+                            value={url}
+                            onChange={(e) => setUrl(e.target.value)}
+                            placeholder="https://..."
+                            type="url"
+                            required
+                        />
+                    </div>
+
+                    <div className={styles.modalFooter}>
+                        <button type="button" className={styles.modalBtnCancel} onClick={onClose}>
+                            Отмена
+                        </button>
+                        <button type="submit" className={styles.modalBtnSave} disabled={!isValid}>
+                            <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+                                <path d="M8 3v10M3 8h10" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
+                            </svg>
+                            Добавить
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    );
+};
+
 /* ── Edit Modal ── */
 interface EditForm {
     name: string;
     code: string;
     semester: string;
-    type: 'required' | 'elective' | 'core';
+    type: 'required' | 'elective';
     credits: number;
     summary: string;
 }
@@ -585,7 +673,6 @@ const CourseEditModal: React.FC<CourseEditModalProps> = ({ course, onClose, onSa
                                 >
                                     <option value="required">Обязательно</option>
                                     <option value="elective">По выбору</option>
-                                    <option value="core">Базовый</option>
                                 </select>
                                 <svg className={styles.modalSelectChevron} width="14" height="14" viewBox="0 0 14 14" fill="none">
                                     <path d="M4 5.5l3 3 3-3" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" />
@@ -639,6 +726,7 @@ const CourseDetailPanel: React.FC<CourseDetailPanelProps> = ({ course, onClose, 
     const [isEditing, setIsEditing] = useState(false);
     const [isAddingStudent, setIsAddingStudent] = useState(false);
     const [isAddingTeacher, setIsAddingTeacher] = useState(false);
+    const [isAddingLink, setIsAddingLink] = useState(false);
     const fileInputRef = useRef<HTMLInputElement>(null);
 
     if (!course) return null;
@@ -670,6 +758,14 @@ const CourseDetailPanel: React.FC<CourseDetailPanelProps> = ({ course, onClose, 
             teachers: [...course.teachers, teacher],
         });
         setIsAddingTeacher(false);
+    };
+
+    const handleAddLink = (material: Material) => {
+        onSave?.({
+            ...course,
+            materials: [...course.materials, material],
+        });
+        setIsAddingLink(false);
     };
 
     const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -822,15 +918,30 @@ const CourseDetailPanel: React.FC<CourseDetailPanelProps> = ({ course, onClose, 
                                 <div key={i} className={styles.materialRow}>
                                     {materialIcons[material.type]}
                                     <div className={styles.materialInfo}>
-                                        <span className={styles.materialName}>{material.name}</span>
-                                        <span className={styles.materialMeta}>{material.size} • {material.date}</span>
+                                        {material.type === 'link' && material.url ? (
+                                            <a href={material.url} target="_blank" rel="noopener noreferrer" className={styles.materialLink}>{material.name}</a>
+                                        ) : (
+                                            <span className={styles.materialName}>{material.name}</span>
+                                        )}
+                                        <span className={styles.materialMeta}>
+                                            {material.type === 'link' ? material.date : `${material.size} • ${material.date}`}
+                                        </span>
                                     </div>
-                                    <button className={styles.materialDownload}>
-                                        <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
-                                            <path d="M14 10v2.667A1.333 1.333 0 0112.667 14H3.333A1.333 1.333 0 012 12.667V10" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" />
-                                            <path d="M5.333 7.333L8 10l2.667-2.667M8 10V2" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" strokeLinejoin="round" />
-                                        </svg>
-                                    </button>
+                                    {material.type === 'link' && material.url ? (
+                                        <a href={material.url} target="_blank" rel="noopener noreferrer" className={styles.materialDownload}>
+                                            <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+                                                <path d="M12 8.667V12a1.333 1.333 0 01-1.333 1.333H3.333A1.333 1.333 0 012 12V4.667a1.333 1.333 0 011.333-1.334h3.334" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" />
+                                                <path d="M10 2h4v4M6.667 9.333L14 2" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" strokeLinejoin="round" />
+                                            </svg>
+                                        </a>
+                                    ) : (
+                                        <button className={styles.materialDownload}>
+                                            <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+                                                <path d="M14 10v2.667A1.333 1.333 0 0112.667 14H3.333A1.333 1.333 0 012 12.667V10" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" />
+                                                <path d="M5.333 7.333L8 10l2.667-2.667M8 10V2" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" strokeLinejoin="round" />
+                                            </svg>
+                                        </button>
+                                    )}
                                 </div>
                             ))}
                         </div>
@@ -842,16 +953,28 @@ const CourseDetailPanel: React.FC<CourseDetailPanelProps> = ({ course, onClose, 
                             onChange={handleFileUpload}
                             accept=".pdf,.ppt,.pptx,.doc,.docx,.odt,.rtf,.txt,.xls,.xlsx,.csv,.ods,.png,.jpg,.jpeg,.gif,.svg,.webp,.bmp,.mp4,.avi,.mov,.mkv,.webm,.mp3,.wav,.ogg,.flac,.aac,.m4a,.zip,.rar,.7z,.tar,.gz,.py,.js,.ts,.java,.cpp,.c"
                         />
-                        <button
-                            className={styles.uploadBtn}
-                            onClick={() => fileInputRef.current?.click()}
-                        >
-                            <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
-                                <path d="M14 10v2.667A1.333 1.333 0 0112.667 14H3.333A1.333 1.333 0 012 12.667V10" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" />
-                                <path d="M10.667 5.333L8 2.667 5.333 5.333M8 2.667V10" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" strokeLinejoin="round" />
-                            </svg>
-                            Добавить файл
-                        </button>
+                        <div className={styles.materialsActions}>
+                            <button
+                                className={styles.uploadBtn}
+                                onClick={() => fileInputRef.current?.click()}
+                            >
+                                <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+                                    <path d="M14 10v2.667A1.333 1.333 0 0112.667 14H3.333A1.333 1.333 0 012 12.667V10" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" />
+                                    <path d="M10.667 5.333L8 2.667 5.333 5.333M8 2.667V10" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" strokeLinejoin="round" />
+                                </svg>
+                                Добавить файл
+                            </button>
+                            <button
+                                className={styles.uploadBtn}
+                                onClick={() => setIsAddingLink(true)}
+                            >
+                                <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+                                    <path d="M6.67 9.33a3.33 3.33 0 004.71 0l1.67-1.66a3.33 3.33 0 00-4.72-4.72L7.33 3.96" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" strokeLinejoin="round" />
+                                    <path d="M9.33 6.67a3.33 3.33 0 00-4.71 0L2.95 8.33a3.33 3.33 0 004.72 4.72l1-1.01" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" strokeLinejoin="round" />
+                                </svg>
+                                Добавить ссылку
+                            </button>
+                        </div>
                     </div>
 
                     <div className={styles.panelFooter}>
@@ -886,6 +1009,13 @@ const CourseDetailPanel: React.FC<CourseDetailPanelProps> = ({ course, onClose, 
                     onClose={() => setIsAddingTeacher(false)}
                     onAdd={handleAddTeacher}
                     existingNames={course.teachers.map((t) => t.name)}
+                />
+            )}
+
+            {isAddingLink && (
+                <AddLinkModal
+                    onClose={() => setIsAddingLink(false)}
+                    onAdd={handleAddLink}
                 />
             )}
         </>

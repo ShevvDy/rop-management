@@ -693,7 +693,7 @@
 
 .nodeOrphanBadge {
   position: absolute;
-  bottom: -10px;
+  bottom: -26px;
   left: 50%;
   transform: translateX(-50%);
   display: flex;
@@ -709,10 +709,98 @@
   white-space: nowrap;
   box-shadow: 0 2px 6px rgba(239, 68, 68, 0.1);
   z-index: 5;
+  pointer-events: none;
 }
 
 .nodeOrphanBadge svg {
   color: #DC2626;
+  flex-shrink: 0;
+}
+
+/* ── Diff highlighting (compare mode) ── */
+.nodeDiffAdded {
+  border-radius: 12px;
+  animation: diffAddedPulse 2.5s ease-in-out infinite;
+}
+
+@keyframes diffAddedPulse {
+  0%, 100% { box-shadow: 0 0 0 3px rgba(22, 163, 74, 0.35); }
+  50%      { box-shadow: 0 0 0 3px rgba(22, 163, 74, 0.35), 0 0 20px rgba(22, 163, 74, 0.15); }
+}
+
+.nodeDiffSame {
+  opacity: 0.55;
+  filter: saturate(0.3);
+  transition: opacity 0.2s, filter 0.2s;
+}
+
+.nodeDiffSame:hover {
+  opacity: 0.85;
+  filter: saturate(0.7);
+}
+
+.nodeDiffRemoved {
+  border-radius: 12px;
+  opacity: 0.35;
+}
+
+.nodeDiffBadge {
+  position: absolute;
+  bottom: -26px;
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 3px 10px;
+  border-radius: 6px;
+  font-size: 10px;
+  font-weight: 600;
+  white-space: nowrap;
+  z-index: 5;
+  pointer-events: none;
+  background: #F0FDF4;
+  border: 1px solid #BBF7D0;
+  color: #16A34A;
+  box-shadow: 0 2px 8px rgba(22, 163, 74, 0.12);
+}
+
+.nodeDiffBadge svg {
+  flex-shrink: 0;
+}
+
+.edgeDiffBadge {
+  padding: 2px 8px;
+  background: #F0FDF4;
+  border: 1px solid #BBF7D0;
+  border-radius: 4px;
+  font-size: 9px;
+  font-weight: 600;
+  color: #16A34A;
+  white-space: nowrap;
+  box-shadow: 0 1px 4px rgba(22, 163, 74, 0.1);
+}
+
+/* ── Read-only badge ── */
+.readOnlyBadge {
+  display: inline-block;
+  margin-left: 8px;
+  padding: 2px 8px;
+  background: #F1F5F9;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  font-size: 10px;
+  font-weight: 600;
+  color: var(--text-muted);
+  letter-spacing: 0.02em;
+  vertical-align: middle;
+}
+
+/* ── Legend divider ── */
+.legendDivider {
+  width: 1px;
+  height: 16px;
+  background: var(--border);
   flex-shrink: 0;
 }
 

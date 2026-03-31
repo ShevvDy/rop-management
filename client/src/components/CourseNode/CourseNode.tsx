@@ -6,7 +6,7 @@ export type CourseNodeData = {
     code: string;
     name: string;
     credits: number;
-    type: 'required' | 'elective' | 'core';
+    type: 'required' | 'elective';
     semester: string;
 };
 
@@ -24,12 +24,6 @@ const typeStyles: Record<string, { border: string; badge: string; badgeBg: strin
         badge: '#fff',
         badgeBg: '#F59E0B',
         label: 'ПО ВЫБОРУ',
-    },
-    core: {
-        border: '#94A3B8',
-        badge: '#64748B',
-        badgeBg: '#F1F5F9',
-        label: 'БАЗОВЫЙ',
     },
 };
 

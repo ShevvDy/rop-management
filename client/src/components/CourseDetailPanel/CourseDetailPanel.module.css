@@ -348,14 +348,19 @@
   display: none;
 }
 
+.materialsActions {
+  display: flex;
+  gap: 8px;
+  margin-top: 12px;
+}
+
 .uploadBtn {
   display: flex;
   align-items: center;
   justify-content: center;
   gap: 8px;
-  width: 100%;
+  flex: 1;
   padding: 10px;
-  margin-top: 12px;
   border: 1.5px dashed var(--border);
   border-radius: 8px;
   background: #FAFBFC;
@@ -365,12 +370,27 @@
   font-family: inherit;
   cursor: pointer;
   transition: all 0.15s;
+  text-decoration: none;
 }
 
 .uploadBtn:hover {
   border-color: var(--primary);
   background: var(--primary-light);
   color: var(--primary);
+}
+
+.materialLink {
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--primary);
+  text-decoration: none;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.materialLink:hover {
+  text-decoration: underline;
 }
 
 /* Footer */
