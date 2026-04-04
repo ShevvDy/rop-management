@@ -61,9 +61,10 @@ class BaseNode(AsyncStructuredNode):
                     continue
             raise AttributeError(f"Relation '{rel_name}' not found in {self.__class__.__name__}")
 
-    async def refresh(self) -> None:
+    async def refresh_node(self, *relations: str) -> None:
         self._relations = {}
         await super().refresh()
+        await self.load_relations(*relations)
 
     @classmethod
     def _get_pk_name(cls) -> str:
@@ -373,11 +374,11 @@ class BaseNode(AsyncStructuredNode):
 
         if not old_relation:
             if isinstance(manager, AsyncZeroOrMore):
-                for new_rel in new_relation:
+                for new_rel in (new_relation or []):
                     await manager.connect(new_rel)
             elif new_relation:
                 await manager.connect(new_relation)
-            self._relations[rel_field_name] = new_relation
+            self._relations[rel_field_name] = new_relation or []
 
         elif not new_relation:
             if isinstance(manager, AsyncOne):

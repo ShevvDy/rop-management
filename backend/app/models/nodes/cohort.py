@@ -46,8 +46,8 @@ class Cohort(BaseNode):
         AsyncZeroOrMore,
     )
 
-    education_plan_rel = AsyncRelationshipFrom(
-        ".planned_course.PlannedCourse",
+    courses_rel = AsyncRelationshipFrom(
+        ".course.Course",
         "PLANNED_FOR_COHORT",
         AsyncZeroOrMore,
     )

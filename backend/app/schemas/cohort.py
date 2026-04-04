@@ -44,3 +44,18 @@ class CohortWithRelationsSchema(CohortResponseSchema):
     groups: list[GroupBaseSchema] = Field(..., description="Список групп набора")
     program: ProgramResponseSchema = Field(..., description="Программа обучения набора")
     specializations: list[SpecializationBaseSchema] = Field(..., description="Список специализаций набора")
+
+
+class EducationPlanSchema(BaseModel):
+    from .course import CourseBaseSchema
+    CourseBaseSchema: ClassVar
+
+    class Node(CourseBaseSchema):
+        course_id: Optional[int] = Field(None, description="ID курса")
+
+    class Edge(BaseModel):
+        source: int | str = Field(..., description="ID или код исходного курса")
+        target: int | str = Field(..., description="ID или код целевого курса")
+
+    nodes: list[Node] = Field(..., description="Список курсов учебного плана")
+    edges: list[Edge] = Field(..., description="Список рёбер между курсами учебного плана")
