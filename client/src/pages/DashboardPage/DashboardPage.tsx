@@ -1,4 +1,9 @@
 import React, { useState, useCallback, useMemo, useRef, useEffect, createContext, useContext } from 'react';
+import { message } from 'antd';
+import { getPrograms, getProgram, createProgram as apiCreateProgram } from '../../api/programs';
+import { createCohort as apiCreateCohort } from '../../api/cohorts';
+import { getFaculties, createFaculty as apiCreateFaculty } from '../../api/faculties';
+import type { ProgramResponse, ProgramWithRelations, FacultyResponse, CohortInProgram } from '../../api/types';
 import {
     ReactFlow,
     ReactFlowProvider,
@@ -163,7 +168,7 @@ function DeletableCourseNode(props: NodeProps<CourseNodeType>) {
             {isInvalid && (
                 <div className={styles.nodeOrphanBadge}>
                     <svg width="12" height="12" viewBox="0 0 12 12" fill="none"><path d="M6 1l5 10H1L6 1z" stroke="currentColor" strokeWidth="1.1" strokeLinejoin="round" /><path d="M6 4.5v2M6 8v.5" stroke="currentColor" strokeWidth="1.1" strokeLinecap="round" /></svg>
-                    {isVkr ? 'Нет входящих' : 'Нет исходящих'}
+                    Нет связей
                 </div>
             )}
             {diffStatus === 'added' && (
@@ -205,15 +210,26 @@ function DeletableEdge({ id, sourceX, sourceY, targetX, targetY, sourcePosition:
 }
 
 /* ═══════════════════════════════════════════
-   Mock data
+   UI interfaces & API mapping helpers
    ═══════════════════════════════════════════ */
+
+interface Faculty {
+    id: string;
+    facultyId: number;
+    name: string;
+    shortName: string;
+    programsCount: number;
+    color: string;
+}
 
 interface Program {
     id: string;
+    programId: number;
     name: string;
     code: string;
     degree: string;
     faculty: string;
+    facultyId: number;
     color: string;
     yearsCount: number;
     coursesCount: number;
@@ -221,6 +237,7 @@ interface Program {
 
 interface YearPlan {
     id: string;
+    cohortId: number;
     year: number;
     label: string;
     status: 'active' | 'draft' | 'archived';
@@ -228,40 +245,47 @@ interface YearPlan {
     studentsCount: number;
 }
 
-const programs: Program[] = [
-    { id: 'se', name: 'Программная инженерия', code: '09.03.04', degree: 'Бакалавриат', faculty: 'Факультет ИТ', color: '#135BEC', yearsCount: 4, coursesCount: 42 },
-    { id: 'cs', name: 'Компьютерные науки', code: '09.03.01', degree: 'Бакалавриат', faculty: 'Факультет ИТ', color: '#8B5CF6', yearsCount: 3, coursesCount: 38 },
-    { id: 'ai', name: 'Искусственный интеллект', code: '09.04.01', degree: 'Магистратура', faculty: 'Факультет ИИ', color: '#059669', yearsCount: 2, coursesCount: 24 },
-    { id: 'ds', name: 'Науки о данных', code: '01.04.02', degree: 'Магистратура', faculty: 'Факультет математики', color: '#D97706', yearsCount: 2, coursesCount: 20 },
-    { id: 'is', name: 'Информационная безопасность', code: '10.03.01', degree: 'Бакалавриат', faculty: 'Факультет ИТ', color: '#DC2626', yearsCount: 3, coursesCount: 36 },
-];
-
-const yearPlans: Record<string, YearPlan[]> = {
-    se: [
-        { id: 'se-2025', year: 2025, label: '2025/2026', status: 'draft', coursesCount: 42, studentsCount: 0 },
-        { id: 'se-2024', year: 2024, label: '2024/2025', status: 'active', coursesCount: 42, studentsCount: 128 },
-        { id: 'se-2023', year: 2023, label: '2023/2024', status: 'active', coursesCount: 40, studentsCount: 115 },
-        { id: 'se-2022', year: 2022, label: '2022/2023', status: 'archived', coursesCount: 38, studentsCount: 102 },
-    ],
-    cs: [
-        { id: 'cs-2024', year: 2024, label: '2024/2025', status: 'active', coursesCount: 38, studentsCount: 95 },
-        { id: 'cs-2023', year: 2023, label: '2023/2024', status: 'active', coursesCount: 36, studentsCount: 88 },
-        { id: 'cs-2022', year: 2022, label: '2022/2023', status: 'archived', coursesCount: 34, studentsCount: 76 },
-    ],
-    ai: [
-        { id: 'ai-2024', year: 2024, label: '2024/2025', status: 'active', coursesCount: 24, studentsCount: 45 },
-        { id: 'ai-2023', year: 2023, label: '2023/2024', status: 'active', coursesCount: 22, studentsCount: 40 },
-    ],
-    ds: [
-        { id: 'ds-2024', year: 2024, label: '2024/2025', status: 'active', coursesCount: 20, studentsCount: 32 },
-        { id: 'ds-2023', year: 2023, label: '2023/2024', status: 'active', coursesCount: 18, studentsCount: 28 },
-    ],
-    is: [
-        { id: 'is-2024', year: 2024, label: '2024/2025', status: 'active', coursesCount: 36, studentsCount: 72 },
-        { id: 'is-2023', year: 2023, label: '2023/2024', status: 'active', coursesCount: 34, studentsCount: 68 },
-        { id: 'is-2022', year: 2022, label: '2022/2023', status: 'archived', coursesCount: 32, studentsCount: 60 },
-    ],
+const LEVEL_LABELS: Record<string, string> = {
+    bachelor: 'Бакалавриат',
+    master: 'Магистратура',
+    phd: 'Аспирантура',
 };
+
+const FACULTY_COLORS = ['#0891B2', '#7C3AED', '#059669', '#D97706', '#DC2626', '#135BEC', '#8B5CF6', '#2563EB'];
+
+const mapFacultyToUI = (f: FacultyResponse, index: number): Faculty => ({
+    id: String(f.faculty_id),
+    facultyId: f.faculty_id,
+    name: f.name,
+    shortName: f.short_name || '',
+    programsCount: f.programs?.length ?? 0,
+    color: FACULTY_COLORS[index % FACULTY_COLORS.length],
+});
+
+const PROGRAM_COLORS = ['#135BEC', '#8B5CF6', '#059669', '#D97706', '#DC2626', '#0891B2', '#7C3AED', '#2563EB'];
+
+const mapProgramToUI = (p: ProgramResponse, index: number, cohorts?: CohortInProgram[]): Program => ({
+    id: String(p.program_id),
+    programId: p.program_id,
+    name: p.name,
+    code: '',
+    degree: LEVEL_LABELS[p.level] || p.level,
+    faculty: p.faculty?.name || '',
+    facultyId: p.faculty?.faculty_id ?? 0,
+    color: PROGRAM_COLORS[index % PROGRAM_COLORS.length],
+    yearsCount: cohorts?.length ?? 0,
+    coursesCount: 0,
+});
+
+const mapCohortToUI = (c: CohortInProgram): YearPlan => ({
+    id: `cohort-${c.cohort_id}`,
+    cohortId: c.cohort_id,
+    year: c.cohort_year,
+    label: `${c.cohort_year}/${c.cohort_year + 1}`,
+    status: 'active',
+    coursesCount: 0,
+    studentsCount: 0,
+});
 
 /* ── Course detail mocks (per year, simplified — same for demo) ── */
 const courseDetails: Record<string, CourseDetail> = {
@@ -707,14 +731,82 @@ const GraphPanel: React.FC<GraphPanelProps> = (props) => (
 /* ═══════════════════════════════════════════
    Create Modal (program or year)
    ═══════════════════════════════════════════ */
-interface CreateProgramModalProps { onClose: () => void; onCreate: (p: Program) => void; }
+interface CreateFacultyModalProps { onClose: () => void; onCreate: (f: Faculty) => void; existingCount: number; }
 
-const CreateProgramModal: React.FC<CreateProgramModalProps> = ({ onClose, onCreate }) => {
+const CreateFacultyModal: React.FC<CreateFacultyModalProps> = ({ onClose, onCreate, existingCount }) => {
     const [name, setName] = useState('');
-    const [code, setCode] = useState('');
+    const [shortName, setShortName] = useState('');
+    const [submitting, setSubmitting] = useState(false);
+
+    useEffect(() => {
+        const h = (e: KeyboardEvent) => { if (e.key === 'Escape') onClose(); };
+        document.addEventListener('keydown', h);
+        return () => document.removeEventListener('keydown', h);
+    }, [onClose]);
+
+    const handleSubmit = async () => {
+        if (!name.trim()) return;
+        setSubmitting(true);
+        try {
+            const resp = await apiCreateFaculty({
+                name: name.trim(),
+                short_name: shortName.trim() || null,
+            });
+            const ui = mapFacultyToUI(resp, existingCount);
+            onCreate(ui);
+        } catch (err: unknown) {
+            const msg = err instanceof Error ? err.message : 'Ошибка создания факультета';
+            message.error(msg);
+        } finally {
+            setSubmitting(false);
+        }
+    };
+
+    return (
+        <div className={styles.dialogOverlay} onClick={onClose}>
+            <div className={styles.dialog} onClick={(e) => e.stopPropagation()}>
+                <div className={styles.dialogHeader}>
+                    <span>Новый факультет</span>
+                    <button className={styles.dialogClose} onClick={onClose}>
+                        <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M3 3l10 10M13 3L3 13" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" /></svg>
+                    </button>
+                </div>
+                <div className={styles.dialogBody}>
+                    <label className={styles.dialogLabel}>НАЗВАНИЕ ФАКУЛЬТЕТА *</label>
+                    <input className={styles.dialogInput} placeholder="Факультет информационных технологий" value={name} onChange={(e) => setName(e.target.value)} autoFocus />
+                    <label className={styles.dialogLabel}>СОКРАЩЕНИЕ</label>
+                    <input className={styles.dialogInput} placeholder="ФИТ" value={shortName} onChange={(e) => setShortName(e.target.value)} />
+                </div>
+                <div className={styles.dialogFooter}>
+                    <button className={styles.dialogBtnCancel} onClick={onClose}>Отмена</button>
+                    <button className={styles.dialogBtnSubmit} disabled={!name.trim() || submitting} onClick={handleSubmit}>
+                        {submitting ? 'Создание...' : 'Создать'}
+                    </button>
+                </div>
+            </div>
+        </div>
+    );
+};
+
+interface CreateProgramModalProps { onClose: () => void; onCreate: (p: Program) => void; existingCount: number; facultyId: number; }
+
+const DEGREE_TO_LEVEL: Record<string, 'bachelor' | 'master' | 'phd'> = {
+    'Бакалавриат': 'bachelor',
+    'Магистратура': 'master',
+    'Аспирантура': 'phd',
+};
+
+const DEGREE_TO_DURATION: Record<string, number> = {
+    'Бакалавриат': 4,
+    'Магистратура': 2,
+    'Аспирантура': 3,
+};
+
+const CreateProgramModal: React.FC<CreateProgramModalProps> = ({ onClose, onCreate, existingCount, facultyId }) => {
+    const [name, setName] = useState('');
     const [degree, setDegree] = useState('Бакалавриат');
-    const [faculty, setFaculty] = useState('');
-    const colors = ['#135BEC', '#8B5CF6', '#059669', '#D97706', '#DC2626', '#0891B2', '#7C3AED', '#2563EB'];
+    const [submitting, setSubmitting] = useState(false);
+    const colors = PROGRAM_COLORS;
     const [color, setColor] = useState(colors[0]);
 
     useEffect(() => {
@@ -722,6 +814,30 @@ const CreateProgramModal: React.FC<CreateProgramModalProps> = ({ onClose, onCrea
         document.addEventListener('keydown', h);
         return () => document.removeEventListener('keydown', h);
     }, [onClose]);
+
+    const handleSubmit = async () => {
+        if (!name.trim()) return;
+        setSubmitting(true);
+        try {
+            const resp = await apiCreateProgram({
+                name: name.trim(),
+                accreditation_year: new Date().getFullYear(),
+                level: DEGREE_TO_LEVEL[degree] || 'bachelor',
+                form: 'offline',
+                lang: 'ru',
+                duration_years: DEGREE_TO_DURATION[degree] || 4,
+                faculty_id: facultyId,
+            });
+            const ui = mapProgramToUI(resp, existingCount);
+            ui.color = color;
+            onCreate(ui);
+        } catch (err: unknown) {
+            const msg = err instanceof Error ? err.message : 'Ошибка создания программы';
+            message.error(msg);
+        } finally {
+            setSubmitting(false);
+        }
+    };
 
     return (
         <div className={styles.dialogOverlay} onClick={onClose}>
@@ -737,21 +853,14 @@ const CreateProgramModal: React.FC<CreateProgramModalProps> = ({ onClose, onCrea
                     <input className={styles.dialogInput} placeholder="Программная инженерия" value={name} onChange={(e) => setName(e.target.value)} autoFocus />
                     <div className={styles.dialogRow}>
                         <div className={styles.dialogField}>
-                            <label className={styles.dialogLabel}>КОД НАПРАВЛЕНИЯ</label>
-                            <input className={styles.dialogInput} placeholder="09.03.04" value={code} onChange={(e) => setCode(e.target.value)} />
-                        </div>
-                        <div className={styles.dialogField}>
                             <label className={styles.dialogLabel}>УРОВЕНЬ</label>
                             <select className={styles.dialogSelect} value={degree} onChange={(e) => setDegree(e.target.value)}>
                                 <option>Бакалавриат</option>
                                 <option>Магистратура</option>
-                                <option>Специалитет</option>
                                 <option>Аспирантура</option>
                             </select>
                         </div>
                     </div>
-                    <label className={styles.dialogLabel}>ФАКУЛЬТЕТ / ИНСТИТУТ</label>
-                    <input className={styles.dialogInput} placeholder="Факультет информационных технологий" value={faculty} onChange={(e) => setFaculty(e.target.value)} />
                     <label className={styles.dialogLabel}>ЦВЕТ</label>
                     <div className={styles.colorPicker}>
                         {colors.map((c) => (
@@ -761,25 +870,52 @@ const CreateProgramModal: React.FC<CreateProgramModalProps> = ({ onClose, onCrea
                 </div>
                 <div className={styles.dialogFooter}>
                     <button className={styles.dialogBtnCancel} onClick={onClose}>Отмена</button>
-                    <button className={styles.dialogBtnSubmit} disabled={!name.trim()} onClick={() => { onCreate({ id: `prog-${Date.now()}`, name: name.trim(), code: code.trim(), degree, faculty: faculty.trim(), color, yearsCount: 0, coursesCount: 0 }); }}>Создать</button>
+                    <button className={styles.dialogBtnSubmit} disabled={!name.trim() || submitting} onClick={handleSubmit}>
+                        {submitting ? 'Создание...' : 'Создать'}
+                    </button>
                 </div>
             </div>
         </div>
     );
 };
 
-interface CreateYearModalProps { onClose: () => void; onCreate: (y: YearPlan) => void; existingYears: number[]; }
+interface CreateYearModalProps { onClose: () => void; onCreate: (y: YearPlan) => void; existingYears: number[]; programId: number; }
 
-const CreateYearModal: React.FC<CreateYearModalProps> = ({ onClose, onCreate, existingYears }) => {
+const CreateYearModal: React.FC<CreateYearModalProps> = ({ onClose, onCreate, existingYears, programId }) => {
     const currentYear = new Date().getFullYear();
     const availableYears = Array.from({ length: 6 }, (_, i) => currentYear + 2 - i).filter((y) => !existingYears.includes(y));
     const [year, setYear] = useState(availableYears[0] || currentYear);
+    const [submitting, setSubmitting] = useState(false);
 
     useEffect(() => {
         const h = (e: KeyboardEvent) => { if (e.key === 'Escape') onClose(); };
         document.addEventListener('keydown', h);
         return () => document.removeEventListener('keydown', h);
     }, [onClose]);
+
+    const handleSubmit = async () => {
+        setSubmitting(true);
+        try {
+            const resp = await apiCreateCohort({
+                cohort_year: year,
+                program_id: programId,
+            });
+            onCreate({
+                id: `cohort-${resp.cohort_id}`,
+                cohortId: resp.cohort_id,
+                year: resp.cohort_year,
+                label: `${resp.cohort_year}/${resp.cohort_year + 1}`,
+                status: 'active',
+                coursesCount: 0,
+                studentsCount: 0,
+            });
+        } catch (err: unknown) {
+            const msg = err instanceof Error ? err.message : 'Ошибка создания когорты';
+            message.error(msg);
+        } finally {
+            setSubmitting(false);
+        }
+    };
 
     return (
         <div className={styles.dialogOverlay} onClick={onClose}>
@@ -801,7 +937,9 @@ const CreateYearModal: React.FC<CreateYearModalProps> = ({ onClose, onCreate, ex
                 </div>
                 <div className={styles.dialogFooter}>
                     <button className={styles.dialogBtnCancel} onClick={onClose}>Отмена</button>
-                    <button className={styles.dialogBtnSubmit} disabled={availableYears.length === 0} onClick={() => { onCreate({ id: `plan-${year}`, year, label: `${year}/${year + 1}`, status: 'draft', coursesCount: 0, studentsCount: 0 }); }}>Создать</button>
+                    <button className={styles.dialogBtnSubmit} disabled={availableYears.length === 0 || submitting} onClick={handleSubmit}>
+                        {submitting ? 'Создание...' : 'Создать'}
+                    </button>
                 </div>
             </div>
         </div>
@@ -811,23 +949,86 @@ const CreateYearModal: React.FC<CreateYearModalProps> = ({ onClose, onCreate, ex
 /* ═══════════════════════════════════════════
    Main Dashboard Page
    ═══════════════════════════════════════════ */
-type View = 'programs' | 'years' | 'graph';
+type View = 'faculties' | 'programs' | 'years' | 'graph';
 
 const DashboardPage: React.FC = () => {
-    const [view, setView] = useState<View>('programs');
-    const [allPrograms, setAllPrograms] = useState(programs);
-    const [allYears, setAllYears] = useState(yearPlans);
+    const [view, setView] = useState<View>('faculties');
+    const [allFaculties, setAllFaculties] = useState<Faculty[]>([]);
+    const [allPrograms, setAllPrograms] = useState<Record<string, Program[]>>({});
+    const [allYears, setAllYears] = useState<Record<string, YearPlan[]>>({});
+    const [selectedFaculty, setSelectedFaculty] = useState<Faculty | null>(null);
     const [selectedProgram, setSelectedProgram] = useState<Program | null>(null);
     const [selectedYears, setSelectedYears] = useState<YearPlan[]>([]);
     const [selectedCourse, setSelectedCourse] = useState<CourseDetail | null>(null);
     const [graphStore, setGraphStore] = useState(initialGraphStore);
+    const [showCreateFaculty, setShowCreateFaculty] = useState(false);
     const [showCreateProgram, setShowCreateProgram] = useState(false);
     const [showCreateYear, setShowCreateYear] = useState(false);
+    const [loading, setLoading] = useState(true);
+    const [loadingPrograms, setLoadingPrograms] = useState(false);
+    const [loadingYears, setLoadingYears] = useState(false);
 
+    /* ── Load faculties from API ── */
+    useEffect(() => {
+        let cancelled = false;
+        setLoading(true);
+        getFaculties()
+            .then((data) => {
+                if (cancelled) return;
+                setAllFaculties(data.map((f, i) => mapFacultyToUI(f, i)));
+            })
+            .catch(() => {
+                if (!cancelled) message.error('Не удалось загрузить факультеты');
+            })
+            .finally(() => { if (!cancelled) setLoading(false); });
+        return () => { cancelled = true; };
+    }, []);
+
+    /* ── Select faculty → load programs ── */
+    const handleSelectFaculty = (f: Faculty) => {
+        setSelectedFaculty(f);
+        setSelectedProgram(null);
+        setSelectedYears([]);
+        setView('programs');
+
+        if (allPrograms[f.id]) return;
+
+        setLoadingPrograms(true);
+        getPrograms()
+            .then((data) => {
+                const filtered = data.filter((p) => p.faculty?.faculty_id === f.facultyId);
+                const programs = filtered.map((p, i) => mapProgramToUI(p, i));
+                setAllPrograms((prev) => ({ ...prev, [f.id]: programs }));
+            })
+            .catch(() => message.error('Не удалось загрузить программы'))
+            .finally(() => setLoadingPrograms(false));
+    };
+
+    /* ── Load cohorts when selecting a program ── */
     const handleSelectProgram = (p: Program) => {
         setSelectedProgram(p);
         setSelectedYears([]);
         setView('years');
+
+        if (allYears[p.id]) return;
+
+        setLoadingYears(true);
+        getProgram(p.programId)
+            .then((data: ProgramWithRelations) => {
+                const cohorts = (data.cohorts || []).map(mapCohortToUI);
+                cohorts.sort((a, b) => b.year - a.year);
+                setAllYears((prev) => ({ ...prev, [p.id]: cohorts }));
+                if (selectedFaculty) {
+                    setAllPrograms((prev) => ({
+                        ...prev,
+                        [selectedFaculty.id]: (prev[selectedFaculty.id] || []).map((prog) =>
+                            prog.id === p.id ? { ...prog, yearsCount: cohorts.length } : prog,
+                        ),
+                    }));
+                }
+            })
+            .catch(() => message.error('Не удалось загрузить годы набора'))
+            .finally(() => setLoadingYears(false));
     };
 
     const handleToggleYear = (yp: YearPlan) => {
@@ -846,6 +1047,7 @@ const DashboardPage: React.FC = () => {
     const handleBack = () => {
         if (view === 'graph') { setView('years'); setSelectedCourse(null); }
         else if (view === 'years') { setView('programs'); setSelectedProgram(null); setSelectedYears([]); }
+        else if (view === 'programs') { setView('faculties'); setSelectedFaculty(null); setSelectedProgram(null); setSelectedYears([]); }
     };
 
     const handleSave = useCallback((updated: CourseDetail) => {
@@ -875,10 +1077,19 @@ const DashboardPage: React.FC = () => {
         <div className={styles.page}>
             {/* Breadcrumb */}
             <div className={styles.breadcrumb}>
-                <button className={`${styles.breadcrumbItem} ${view === 'programs' ? styles.active : ''}`} onClick={() => { setView('programs'); setSelectedProgram(null); setSelectedYears([]); setSelectedCourse(null); }}>
+                <button className={`${styles.breadcrumbItem} ${view === 'faculties' ? styles.active : ''}`} onClick={() => { setView('faculties'); setSelectedFaculty(null); setSelectedProgram(null); setSelectedYears([]); setSelectedCourse(null); }}>
                     <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M2 6l6-4 6 4v7a1 1 0 01-1 1H3a1 1 0 01-1-1V6z" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" strokeLinejoin="round" /></svg>
-                    Программы
+                    Факультеты
                 </button>
+                {selectedFaculty && (
+                    <>
+                        <svg className={styles.breadcrumbSep} width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M5 3l4 4-4 4" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" /></svg>
+                        <button className={`${styles.breadcrumbItem} ${view === 'programs' ? styles.active : ''}`} onClick={() => { setView('programs'); setSelectedProgram(null); setSelectedYears([]); setSelectedCourse(null); }}>
+                            <span className={styles.breadcrumbDot} style={{ background: selectedFaculty.color }} />
+                            {selectedFaculty.name}
+                        </button>
+                    </>
+                )}
                 {selectedProgram && (
                     <>
                         <svg className={styles.breadcrumbSep} width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M5 3l4 4-4 4" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" /></svg>
@@ -898,17 +1109,62 @@ const DashboardPage: React.FC = () => {
                 )}
             </div>
 
-            {/* ── Programs View ── */}
-            {view === 'programs' && (
+            {/* ── Faculties View ── */}
+            {view === 'faculties' && (
                 <div className={styles.gridView}>
                     <div className={styles.gridHeader}>
                         <div>
-                            <h1 className={styles.gridTitle}>Образовательные программы</h1>
+                            <h1 className={styles.gridTitle}>Факультеты</h1>
+                            <p className={styles.gridSubtitle}>Выберите факультет для просмотра образовательных программ</p>
+                        </div>
+                    </div>
+                    <div className={styles.cardGrid}>
+                        {loading && <p style={{ gridColumn: '1 / -1', textAlign: 'center', color: '#94A3B8', padding: '40px 0' }}>Загрузка факультетов...</p>}
+                        {!loading && allFaculties.map((f) => (
+                            <button key={f.id} className={styles.programCard} onClick={() => handleSelectFaculty(f)}>
+                                <div className={styles.programCardAccent} style={{ background: f.color }} />
+                                <div className={styles.programCardBody}>
+                                    <div className={styles.programCardTop}>
+                                        {f.shortName && <span className={styles.programDegree} style={{ background: `${f.color}14`, color: f.color }}>{f.shortName}</span>}
+                                    </div>
+                                    <h3 className={styles.programName}>{f.name}</h3>
+                                    <div className={styles.programStats}>
+                                        <div className={styles.programStat}>
+                                            <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M7 2l-5 2.5 5 2.5 5-2.5L7 2z" stroke="currentColor" strokeWidth="1.2" /><path d="M2 7.5l5 2.5 5-2.5" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" /></svg>
+                                            <span>{f.programsCount} {f.programsCount === 1 ? 'программа' : f.programsCount < 5 ? 'программы' : 'программ'}</span>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div className={styles.programCardArrow}>
+                                    <svg width="20" height="20" viewBox="0 0 20 20" fill="none"><path d="M7 5l5 5-5 5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" /></svg>
+                                </div>
+                            </button>
+                        ))}
+
+                        {/* Create card */}
+                        <button className={styles.createCard} onClick={() => setShowCreateFaculty(true)}>
+                            <div className={styles.createCardIcon}>
+                                <svg width="28" height="28" viewBox="0 0 28 28" fill="none"><path d="M14 7v14M7 14h14" stroke="currentColor" strokeWidth="2" strokeLinecap="round" /></svg>
+                            </div>
+                            <span className={styles.createCardText}>Создать факультет</span>
+                            <span className={styles.createCardHint}>Добавить новый факультет или институт</span>
+                        </button>
+                    </div>
+                </div>
+            )}
+
+            {/* ── Programs View ── */}
+            {view === 'programs' && selectedFaculty && (
+                <div className={styles.gridView}>
+                    <div className={styles.gridHeader}>
+                        <div>
+                            <h1 className={styles.gridTitle}>{selectedFaculty.name}</h1>
                             <p className={styles.gridSubtitle}>Выберите программу для просмотра учебных планов и графов зависимостей</p>
                         </div>
                     </div>
                     <div className={styles.cardGrid}>
-                        {allPrograms.map((p) => (
+                        {loadingPrograms && <p style={{ gridColumn: '1 / -1', textAlign: 'center', color: '#94A3B8', padding: '40px 0' }}>Загрузка программ...</p>}
+                        {!loadingPrograms && (allPrograms[selectedFaculty.id] || []).map((p) => (
                             <button key={p.id} className={styles.programCard} onClick={() => handleSelectProgram(p)}>
                                 <div className={styles.programCardAccent} style={{ background: p.color }} />
                                 <div className={styles.programCardBody}>
@@ -917,7 +1173,6 @@ const DashboardPage: React.FC = () => {
                                         <span className={styles.programCode}>{p.code}</span>
                                     </div>
                                     <h3 className={styles.programName}>{p.name}</h3>
-                                    <p className={styles.programFaculty}>{p.faculty}</p>
                                     <div className={styles.programStats}>
                                         <div className={styles.programStat}>
                                             <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><rect x="1.5" y="1.5" width="11" height="11" rx="2" stroke="currentColor" strokeWidth="1.2" /><path d="M1.5 5.5h11" stroke="currentColor" strokeWidth="1.2" /></svg>
@@ -992,7 +1247,8 @@ const DashboardPage: React.FC = () => {
                     )}
 
                     <div className={styles.cardGrid}>
-                        {(allYears[selectedProgram.id] || []).map((yp) => {
+                        {loadingYears && <p style={{ gridColumn: '1 / -1', textAlign: 'center', color: '#94A3B8', padding: '40px 0' }}>Загрузка годов набора...</p>}
+                        {!loadingYears && (allYears[selectedProgram.id] || []).map((yp) => {
                             const isSelected = selectedYears.some((y) => y.id === yp.id);
                             const sc = statusConfig[yp.status];
                             return (
@@ -1093,7 +1349,7 @@ const DashboardPage: React.FC = () => {
             )}
 
             {/* Back button */}
-            {view !== 'programs' && (
+            {view !== 'faculties' && (
                 <button className={styles.backBtn} onClick={handleBack}>
                     <svg width="18" height="18" viewBox="0 0 18 18" fill="none"><path d="M11 4L6 9l5 5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" /></svg>
                     Назад
@@ -1106,17 +1362,40 @@ const DashboardPage: React.FC = () => {
             )}
 
             {/* Create modals */}
-            {showCreateProgram && (
-                <CreateProgramModal
-                    onClose={() => setShowCreateProgram(false)}
-                    onCreate={(p) => { setAllPrograms((prev) => [...prev, p]); setShowCreateProgram(false); }}
+            {showCreateFaculty && (
+                <CreateFacultyModal
+                    onClose={() => setShowCreateFaculty(false)}
+                    existingCount={allFaculties.length}
+                    onCreate={(f) => { setAllFaculties((prev) => [...prev, f]); setShowCreateFaculty(false); }}
                 />
             )}
-            {showCreateYear && selectedProgram && (
+            {showCreateProgram && selectedFaculty && (
+                <CreateProgramModal
+                    onClose={() => setShowCreateProgram(false)}
+                    existingCount={(allPrograms[selectedFaculty.id] || []).length}
+                    facultyId={selectedFaculty.facultyId}
+                    onCreate={(p) => {
+                        setAllPrograms((prev) => ({ ...prev, [selectedFaculty.id]: [...(prev[selectedFaculty.id] || []), p] }));
+                        setAllFaculties((prev) => prev.map((f) => f.id === selectedFaculty.id ? { ...f, programsCount: f.programsCount + 1 } : f));
+                        setShowCreateProgram(false);
+                    }}
+                />
+            )}
+            {showCreateYear && selectedProgram && selectedFaculty && (
                 <CreateYearModal
                     onClose={() => setShowCreateYear(false)}
                     existingYears={(allYears[selectedProgram.id] || []).map((y) => y.year)}
-                    onCreate={(y) => { setAllYears((prev) => ({ ...prev, [selectedProgram.id]: [...(prev[selectedProgram.id] || []), y] })); setShowCreateYear(false); }}
+                    programId={selectedProgram.programId}
+                    onCreate={(y) => {
+                        setAllYears((prev) => ({ ...prev, [selectedProgram.id]: [y, ...(prev[selectedProgram.id] || [])] }));
+                        setAllPrograms((prev) => ({
+                            ...prev,
+                            [selectedFaculty.id]: (prev[selectedFaculty.id] || []).map((prog) =>
+                                prog.id === selectedProgram.id ? { ...prog, yearsCount: prog.yearsCount + 1 } : prog,
+                            ),
+                        }));
+                        setShowCreateYear(false);
+                    }}
                 />
             )}
         </div>
