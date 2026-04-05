@@ -9,7 +9,7 @@ from neomodel import (
     StringProperty,
     AsyncZeroOrMore,
     AsyncZeroOrOne,
-    AsyncOne, DoesNotExist,
+    AsyncOne,
 )
 
 from ..base_node import BaseNode
@@ -26,7 +26,7 @@ class Course(BaseNode):
 
     course_id = IntegerProperty(unique_index=True)
     name = StringProperty(required=True)
-    code = StringProperty(required=True, unique_index=True)
+    code = StringProperty(required=True)
     semester_number = IntegerProperty(required=True)
     credits = IntegerProperty(required=True)
     form = StringProperty(default=EducationForm.offline, choices=EducationForm.choices())
@@ -108,7 +108,7 @@ class Course(BaseNode):
         Проверки:
         1. Для всех курсов: 0 < semester_number <= total_semesters
         2. Все переданные course_id должны существовать в БД
-        3. Коды всех курсов должны быть уникальны (в том числе в БД)
+        3. Коды всех курсов должны быть уникальны в рамках переданных данных (когорты)
         4. Ровно один курс должен иметь is_last=True
 
         Args:
@@ -120,7 +120,7 @@ class Course(BaseNode):
 
         Raises:
             NotFoundException: Если какой-либо course_id не найден в БД
-            ConflictException: Если есть дублирующиеся коды или нарушена уникальность
+            ConflictException: Если есть дублирующиеся коды в переданных данных
             BadRequestException: Если нарушены условия семестров, нет или более одного курса с is_last=True
         """
         # Проверка 1: Проверяем диапазон semester_number для всех курсов
@@ -149,35 +149,19 @@ class Course(BaseNode):
             except NotFoundException:
                 raise NotFoundException(f"Курс с ID {course_id} не найден")
 
-        # Проверка 3: Проверяем уникальность кода
-        # Собираем все коды из переданных данных и их связь с элементами
+        # Проверка 3: Проверяем уникальность кода в рамках переданных данных
+        # Собираем все коды из переданных данных
         code_to_items = defaultdict(list)
         for item in data:
             code = item.get('code')
             if code:
                 code_to_items[code].append(item)
 
-        # Подпроверка 3.1: Проверяем дублирование кодов в самих переданных данных
+        # Проверяем дублирование кодов в переданных данных
         for code, items in code_to_items.items():
             if len(items) > 1:
                 # Есть дублирование в переданных данных
                 raise ConflictException(f"Дубликат кода '{code}'")
-
-        # Подпроверка 3.2: Проверяем коды в БД (исключая курсы, которые мы обновляем)
-        for code, items in code_to_items.items():
-            try:
-                existing_course = await cls.nodes.get(code=code)
-                # Если код существует в БД, проверяем, что этот курс обновляется в переданных данных
-                # (может иметь другой код, но тот же course_id)
-                is_updating = any(
-                    item.get('course_id') == existing_course.course_id
-                    for item in data  # Проверяем все элементы, не только items с этим кодом
-                )
-                if not is_updating:
-                    # Код существует в БД и не обновляется - это ошибка
-                    raise ConflictException(f"Код '{code}' уже используется в базе")
-            except DoesNotExist:
-                pass
 
         # Проверка 4: Проверяем наличие ровно одного курса с is_last=True
         last_courses = [item for item in data if item.get('is_last') is True]
@@ -187,20 +171,11 @@ class Course(BaseNode):
         elif len(last_courses) > 1:
             raise BadRequestException(f"Только один курс может иметь is_last=True, найдено {len(last_courses)}")
 
-
         # Строим результирующий словарь с данными курсов из переданного data
         result: CourseNodes = {}
-
         for item in data:
-            course_id = item.get('course_id')
-            code = item.get('code')
-
-            if course_id is not None:
-                # Если есть course_id, используем его как ключ
-                result[course_id] = item
-            else:
-                # Если нет course_id, используем code как ключ
-                result[code] = item
+            course_key = item.get('course_id') or item.get('code')
+            result[course_key] = item
 
         return result
 
