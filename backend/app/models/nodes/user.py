@@ -67,17 +67,15 @@ class User(BaseNode):
     @classmethod
     async def _before_creation(cls, data: DictStrAny) -> None:
         from .tag import Tag
-
-        tags_ids = data.pop("tags_ids", [])
-        tags = []
-        for tag_id in tags_ids:
-            tag = await Tag.get_by_id(tag_id)
-            if tag:
-                tags.append(tag)
-        data["tags_objs"] = tags
+        await cls._check_relationship_before_creation(data, 'tags', Tag)
 
     async def _after_creation(self, data: DictStrAny) -> None:
-        tags = data.pop("tags_objs", [])
-        for tag in tags:
-            await self.tags_rel.connect(tag)
-        self._relations["tags"] = tags
+        await self._update_relationship(data, 'tags')
+
+    async def _before_update(self, data: DictStrAny) -> None:
+        from .tag import Tag
+
+        await self._check_relationship_before_update(data, 'tags', Tag)
+
+    async def _after_update(self, data: DictStrAny) -> None:
+        await self._update_relationship(data, 'tags')

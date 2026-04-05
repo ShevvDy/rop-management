@@ -37,10 +37,8 @@ class SpecializationResponseSchema(SpecializationBaseSchema):
 
 
 class SpecializationWithRelationsSchema(SpecializationResponseSchema):
-    from .planned_course import PlannedCourseResponseSchema
     from .group import GroupBaseSchema
 
-    PlannedCourseResponseSchema: ClassVar
     GroupBaseSchema: ClassVar
 
     class Group(GroupBaseSchema):
@@ -60,5 +58,4 @@ class SpecializationWithRelationsSchema(SpecializationResponseSchema):
         cohort: Cohort = Field(..., description="Набор группы")
         specialization: Optional[SpecializationBaseSchema] = Field(None, description="Специализация группы")
 
-    education_plan: list[PlannedCourseResponseSchema] = Field(default=[], description="Учебный план специализации")
     groups: list[Group] = Field(default=[], description="Группы специализации")

@@ -8,7 +8,6 @@ from neomodel import (
 )
 
 from ..base_node import BaseNode
-from ...exceptions import ForeignKeyException
 from ...utils.types import DictStrAny
 
 
@@ -32,8 +31,8 @@ class Specialization(BaseNode):
         AsyncZeroOrMore,
     )
 
-    education_plan_rel = AsyncRelationshipFrom(
-        ".planned_course.PlannedCourse",
+    courses_rel = AsyncRelationshipFrom(
+        ".course.Course",
         "FOR_SPECIALIZATION",
         AsyncZeroOrMore,
     )
@@ -42,15 +41,14 @@ class Specialization(BaseNode):
     async def _before_creation(cls, data: DictStrAny) -> None:
         from .cohort import Cohort
 
-        cohort_id = data.pop("cohort_id", None)
-        if not cohort_id:
-            raise ForeignKeyException()
-        cohort = await Cohort.get_by_id(cohort_id)
-        if not cohort:
-            raise ForeignKeyException(node="Cohort", node_id=cohort_id)
-        data["cohort_obj"] = cohort
+        await cls._check_relationship_before_creation(data, 'cohort', Cohort)
 
     async def _after_creation(self, data: DictStrAny) -> None:
-        cohort = data.pop("cohort_obj")
-        await self.cohort_rel.connect(cohort)
-        self._relations["cohort"] = cohort
+        await self._update_relationship(data, 'cohort')
+
+    async def _before_update(self, data: DictStrAny) -> None:
+        from .cohort import Cohort
+        await self._check_relationship_before_update(data, 'cohort', Cohort)
+
+    async def _after_update(self, data: DictStrAny) -> None:
+        await self._update_relationship(data, 'cohort')

@@ -2,7 +2,8 @@ from neomodel import (
     DateTimeProperty,
     IntegerProperty,
     AsyncRelationshipFrom,
-    StringProperty, AsyncZeroOrMore,
+    StringProperty,
+    AsyncZeroOrMore,
 )
 
 from ..base_node import BaseNode
