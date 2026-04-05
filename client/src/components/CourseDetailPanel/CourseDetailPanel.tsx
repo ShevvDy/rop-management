@@ -656,12 +656,20 @@ const CourseEditModal: React.FC<CourseEditModalProps> = ({ course, onClose, onSa
                     <div className={styles.modalRow}>
                         <div className={`${styles.modalField} ${styles.modalFieldGrow}`}>
                             <label className={styles.modalLabel}>Семестр</label>
-                            <input
-                                className={styles.modalInput}
-                                value={form.semester}
-                                onChange={(e) => setForm({ ...form, semester: e.target.value })}
-                                placeholder="Осенний семестр"
-                            />
+                            <div className={styles.modalSelectWrapper}>
+                                <select
+                                    className={styles.modalSelect}
+                                    value={form.semester}
+                                    onChange={(e) => setForm({ ...form, semester: e.target.value })}
+                                >
+                                    {Array.from({ length: 12 }, (_, i) => i + 1).map((n) => (
+                                        <option key={n} value={`${n} семестр`}>{n} семестр</option>
+                                    ))}
+                                </select>
+                                <svg className={styles.modalSelectChevron} width="14" height="14" viewBox="0 0 14 14" fill="none">
+                                    <path d="M4 5.5l3 3 3-3" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" />
+                                </svg>
+                            </div>
                         </div>
                         <div className={`${styles.modalField} ${styles.modalFieldMedium}`}>
                             <label className={styles.modalLabel}>Тип</label>

@@ -77,6 +77,49 @@ export interface CohortCreatePayload {
     manager_id?: number | null;
 }
 
+/* ── Course ── */
+
+export interface CourseBase {
+    course_id: number;
+    name: string;
+    code: string;
+    semester_number: number;
+    credits: number;
+    form: string;
+    is_elective: boolean;
+    syllabus_link?: string | null;
+    rpd_link?: string | null;
+    is_last?: boolean;
+}
+
+export interface EducationPlanEdge {
+    source: number | string;
+    target: number | string;
+}
+
+export interface EducationPlanGraph {
+    nodes: CourseBase[];
+    edges: EducationPlanEdge[];
+}
+
+export interface EducationPlanNodePayload {
+    course_id?: number | null;
+    name: string;
+    code: string;
+    semester_number: number;
+    credits: number;
+    form: string;
+    is_elective: boolean;
+    syllabus_link?: string | null;
+    rpd_link?: string | null;
+    is_last?: boolean;
+}
+
+export interface EducationPlanPayload {
+    nodes: EducationPlanNodePayload[];
+    edges: EducationPlanEdge[];
+}
+
 /* ── Faculty ── */
 
 export interface FacultyResponse extends FacultyBase {

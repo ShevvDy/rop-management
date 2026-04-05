@@ -1,9 +1,9 @@
 import React, { useState, useCallback, useMemo, useRef, useEffect, createContext, useContext } from 'react';
 import { message } from 'antd';
 import { getPrograms, getProgram, createProgram as apiCreateProgram } from '../../api/programs';
-import { createCohort as apiCreateCohort } from '../../api/cohorts';
+import { createCohort as apiCreateCohort, getCohortGraph, updateCohortGraph } from '../../api/cohorts';
 import { getFaculties, createFaculty as apiCreateFaculty } from '../../api/faculties';
-import type { ProgramResponse, ProgramWithRelations, FacultyResponse, CohortInProgram } from '../../api/types';
+import type { ProgramResponse, ProgramWithRelations, FacultyResponse, CohortInProgram, EducationPlanGraph } from '../../api/types';
 import {
     ReactFlow,
     ReactFlowProvider,
@@ -45,14 +45,18 @@ const estimateNodeHeight = (node: Node<CourseNodeData>) => {
     return NODE_BASE_HEIGHT + (lines - 1) * LINE_HEIGHT;
 };
 
-const getLayoutedElements = (nodes: Node<CourseNodeData>[], edges: Edge[], direction: 'TB' | 'BT' | 'LR' | 'RL' = 'BT') => {
+const getLayoutedElements = (nodes: Node<CourseNodeData>[], edges: Edge[], direction: 'TB' | 'BT' | 'LR' | 'RL' = 'TB') => {
     const g = new dagre.graphlib.Graph().setDefaultEdgeLabel(() => ({}));
     g.setGraph({ rankdir: direction, nodesep: 80, ranksep: 100, edgesep: 40, align: 'UL' });
     nodes.forEach((node) => {
         const h = estimateNodeHeight(node);
         g.setNode(node.id, { width: NODE_WIDTH, height: h });
     });
-    edges.forEach((edge) => g.setEdge(edge.source, edge.target));
+    edges.forEach((edge) => {
+        if (g.hasNode(edge.source) && g.hasNode(edge.target)) {
+            g.setEdge(edge.source, edge.target);
+        }
+    });
     dagre.layout(g);
 
     const isHorizontal = direction === 'LR' || direction === 'RL';
@@ -61,8 +65,8 @@ const getLayoutedElements = (nodes: Node<CourseNodeData>[], edges: Edge[], direc
         return {
             ...node,
             position: { x: pos.x - NODE_WIDTH / 2, y: pos.y - pos.height / 2 },
-            targetPosition: isHorizontal ? Position.Left : Position.Bottom,
-            sourcePosition: isHorizontal ? Position.Right : Position.Top,
+            targetPosition: isHorizontal ? Position.Left : Position.Top,
+            sourcePosition: isHorizontal ? Position.Right : Position.Bottom,
         };
     });
     return { nodes: layoutedNodes, edges: [...edges] };
@@ -75,6 +79,9 @@ const getLayoutedElements = (nodes: Node<CourseNodeData>[], edges: Edge[], direc
    ═══════════════════════════════════════════ */
 const VKR_NODE_ID = 'vkr';
 
+const isVkrNode = (n: Node): boolean =>
+    n.id === VKR_NODE_ID || (n.data as CourseNodeData)?.code === 'ВКР';
+
 const findInvalidNodes = (nodes: Node[], edges: Edge[]): string[] => {
     if (nodes.length <= 1) return [];
     const sources = new Set<string>();
@@ -82,8 +89,8 @@ const findInvalidNodes = (nodes: Node[], edges: Edge[]): string[] => {
     edges.forEach((e) => { sources.add(e.source); targets.add(e.target); });
 
     return nodes.filter((n) => {
-        if (n.id === VKR_NODE_ID) {
-            // ВКР must have at least one incoming edge
+        if (isVkrNode(n)) {
+            // ��КР must have at least one incoming edge
             return !targets.has(n.id);
         }
         // All other nodes must have at least one outgoing edge
@@ -146,7 +153,7 @@ type CourseNodeType = Node<CourseNodeData>;
 function DeletableCourseNode(props: NodeProps<CourseNodeType>) {
     const { invalidIds, onDeleteNode, readOnly, diff } = useContext(GraphEditContext);
     const isInvalid = !readOnly && invalidIds.includes(props.id);
-    const isVkr = props.id === VKR_NODE_ID;
+    const isVkr = props.id === VKR_NODE_ID || props.data?.code === 'ВКР';
 
     const diffStatus = diff?.nodes[props.id];
     const diffClass = diffStatus === 'added' ? styles.nodeDiffAdded
@@ -287,6 +294,93 @@ const mapCohortToUI = (c: CohortInProgram): YearPlan => ({
     studentsCount: 0,
 });
 
+/* ── Convert API graph → React Flow nodes/edges/details ── */
+const apiGraphToFlowData = (graph: EducationPlanGraph): YearGraphData => {
+    const nodes: Node<CourseNodeData>[] = graph.nodes.map((c) => ({
+        id: String(c.course_id),
+        type: 'courseNode',
+        position: { x: 0, y: 0 },
+        data: {
+            code: c.code,
+            name: c.name,
+            credits: c.credits,
+            type: c.is_elective ? 'elective' as const : 'required' as const,
+            semester: `${c.semester_number} семестр`,
+        },
+    }));
+
+    const edges: Edge[] = graph.edges.map((e) => ({
+        id: `e-${e.source}-${e.target}`,
+        source: String(e.source),
+        target: String(e.target),
+        type: 'deletable',
+        style: { stroke: '#CBD5E1', strokeWidth: 2 },
+    }));
+
+    const details: Record<string, CourseDetail> = {};
+    graph.nodes.forEach((c) => {
+        const id = String(c.course_id);
+        details[id] = {
+            id,
+            code: c.code,
+            name: c.name,
+            semester: `${c.semester_number} семестр`,
+            type: c.is_elective ? 'elective' : 'required',
+            credits: c.credits,
+            summary: '',
+            students: { avatars: [], total: 0 },
+            teachers: [],
+            materials: [],
+        };
+    });
+
+    /* Ensure a ВКР (is_last) node always exists */
+    const hasVkr = graph.nodes.some((c) => c.is_last);
+    if (!hasVkr) {
+        nodes.push({ id: VKR_NODE_ID, type: 'courseNode', position: { x: 0, y: 0 }, data: { code: 'ВКР', name: 'Выпускная квалификационная работа', credits: 12, type: 'required', semester: '8 семестр' } });
+        details[VKR_NODE_ID] = { id: VKR_NODE_ID, code: 'ВКР', name: 'Выпускная квалификационная работа', semester: '8 семестр', type: 'required', credits: 12, summary: 'Итоговая квалификационная работа. Самостоятельное исследование или проект под руководством научного руководителя.', students: { avatars: [], total: 0 }, teachers: [], materials: [] };
+    }
+
+    const { nodes: layoutedNodes, edges: layoutedEdges } = getLayoutedElements(nodes, edges);
+    return { nodes: layoutedNodes, edges: layoutedEdges, details };
+};
+
+/* ── Convert React Flow nodes/edges → API payload ── */
+const flowDataToApiPayload = (nodes: Node<CourseNodeData>[], edges: Edge[]) => {
+    const apiNodes = nodes.map((n) => {
+        const courseId = /^\d+$/.test(n.id) ? Number(n.id) : null;
+        const semMatch = n.data.semester?.match(/(\d+)/);
+        const semesterNumber = semMatch ? Number(semMatch[1]) : 1;
+        return {
+            course_id: courseId,
+            name: n.data.name,
+            code: n.data.code,
+            semester_number: semesterNumber,
+            credits: n.data.credits,
+            form: 'offline',
+            is_elective: n.data.type === 'elective',
+            is_last: isVkrNode(n),
+        };
+    });
+
+    /* For edges: numeric IDs refer to existing courses, non-numeric IDs
+       (e.g. "course-1712345678") are new nodes — resolve to their code */
+    const nodeCodeMap = new Map<string, string>();
+    nodes.forEach((n) => { if (n.data?.code) nodeCodeMap.set(n.id, n.data.code); });
+
+    const resolveEdgeRef = (id: string): number | string => {
+        if (/^\d+$/.test(id)) return Number(id);
+        return nodeCodeMap.get(id) || id;
+    };
+
+    const apiEdges = edges.map((e) => ({
+        source: resolveEdgeRef(e.source),
+        target: resolveEdgeRef(e.target),
+    }));
+
+    return { nodes: apiNodes, edges: apiEdges };
+};
+
 /* ── Course detail mocks (per year, simplified — same for demo) ── */
 const courseDetails: Record<string, CourseDetail> = {
     cs101: { id: 'cs101', code: 'CS-101', name: 'Введение в программирование', semester: 'Осенний семестр', type: 'required', credits: 6, summary: 'Основы программирования на Python. Переменные, условия, циклы, функции, работа с файлами.', students: { avatars: ['https://api.dicebear.com/7.x/avataaars/svg?seed=Stud1&backgroundColor=ffd5dc', 'https://api.dicebear.com/7.x/avataaars/svg?seed=Stud2&backgroundColor=c0aede', 'https://api.dicebear.com/7.x/avataaars/svg?seed=Stud3&backgroundColor=b6e3f4'], total: 120 }, teachers: [{ name: 'Проф. Алексей Иванов', role: 'Лектор', avatar: 'https://api.dicebear.com/7.x/avataaars/svg?seed=ProfIvanov&backgroundColor=b6e3f4' }], materials: [{ name: 'Программа_курса.pdf', size: '800 КБ', date: '1 нед. назад', type: 'pdf' }] },
@@ -406,7 +500,7 @@ const statusConfig: Record<string, { label: string; bg: string; color: string }>
     archived: { label: 'Архив', bg: '#F1F5F9', color: '#64748B' },
 };
 
-/* Pre-layout initial data with dagre */
+/* Pre-layout initial data */
 const { nodes: layoutedNodesA, edges: layoutedEdgesA } = getLayoutedElements(nodesVariantA, edgesMain);
 const { nodes: layoutedNodesB, edges: layoutedEdgesB } = getLayoutedElements(nodesVariantB, edgesVariantB);
 
@@ -455,19 +549,36 @@ interface GraphPanelProps {
     details: Record<string, CourseDetail>;
     onSelectCourse: (c: CourseDetail | null) => void;
     onDetailsChange: (d: Record<string, CourseDetail>) => void;
+    onGraphSaved?: (data: YearGraphData) => void;
+    cohortId?: number;
     compact?: boolean;
     readOnly?: boolean;
     diff?: DiffInfo | null;
 }
 
-const GraphPanelInner: React.FC<GraphPanelProps> = ({ label, labelColor, initNodes, initEdges, details, onSelectCourse, onDetailsChange, compact, readOnly = false, diff = null }) => {
+const GraphPanelInner: React.FC<GraphPanelProps> = ({ label, labelColor, initNodes, initEdges, details, onSelectCourse, onDetailsChange, onGraphSaved, cohortId, compact, readOnly = false, diff = null }) => {
     const [nodes, setNodes, onNodesChange] = useNodesState(initNodes);
     const [edges, setEdges, onEdgesChange] = useEdgesState(initEdges);
+
+    /* Sync node data when parent updates (e.g. after editing in CourseDetailPanel) */
+    useEffect(() => {
+        setNodes((prev) => prev.map((n) => {
+            const updated = initNodes.find((init) => init.id === n.id);
+            if (!updated) return n;
+            const dataChanged = n.data.name !== updated.data.name
+                || n.data.code !== updated.data.code
+                || n.data.credits !== updated.data.credits
+                || n.data.type !== updated.data.type
+                || n.data.semester !== updated.data.semester;
+            return dataChanged ? { ...n, data: updated.data } : n;
+        }));
+    }, [initNodes, setNodes]);
+
     const { screenToFlowPosition, fitView } = useReactFlow();
     const [menu, setMenu] = useState<{ x: number; y: number; flowX: number; flowY: number } | null>(null);
     const [dialog, setDialog] = useState(false);
     const [pendingPos, setPendingPos] = useState({ x: 0, y: 0 });
-    const [form, setForm] = useState({ code: '', name: '', credits: 3, type: 'required' as CourseNodeData['type'], semester: '' });
+    const [form, setForm] = useState({ code: '', name: '', credits: 3, type: 'required' as CourseNodeData['type'], semester: '1' });
     const menuRef = useRef<HTMLDivElement>(null);
 
     /* ── Dirty state tracking ── */
@@ -483,13 +594,14 @@ const GraphPanelInner: React.FC<GraphPanelProps> = ({ label, labelColor, initNod
         invalidIds.map((id) => {
             const n = nodes.find((nd) => nd.id === id);
             const name = n?.data?.name?.replace(/\n/g, ' ') || id;
-            if (id === VKR_NODE_ID) return `${name} (нет входящих связей)`;
+            if (n && isVkrNode(n)) return `${name} (нет входящих связей)`;
             return `${name} (нет исходящих связей)`;
         }), [invalidIds, nodes]);
 
     /* ── Delete node handler ── */
     const handleDeleteNode = useCallback((nodeId: string) => {
-        if (nodeId === VKR_NODE_ID) return;
+        const nodeToDelete = nodes.find((n) => n.id === nodeId);
+        if (nodeId === VKR_NODE_ID || nodeToDelete?.data?.code === 'ВКР') return;
         setNodes((nds) => nds.filter((n) => n.id !== nodeId));
         setEdges((eds) => eds.filter((e) => e.source !== nodeId && e.target !== nodeId));
         const newDetails = { ...details };
@@ -497,7 +609,7 @@ const GraphPanelInner: React.FC<GraphPanelProps> = ({ label, labelColor, initNod
         onDetailsChange(newDetails);
         onSelectCourse(null);
         markDirty();
-    }, [setNodes, setEdges, details, onDetailsChange, onSelectCourse, markDirty]);
+    }, [nodes, setNodes, setEdges, details, onDetailsChange, onSelectCourse, markDirty]);
 
     /* ── Delete edge handler ── */
     const handleDeleteEdge = useCallback((edgeId: string) => {
@@ -560,7 +672,7 @@ const GraphPanelInner: React.FC<GraphPanelProps> = ({ label, labelColor, initNod
     const openAddDialog = useCallback(() => {
         if (!menu) return;
         setPendingPos({ x: menu.flowX, y: menu.flowY });
-        setForm({ code: '', name: '', credits: 3, type: 'required', semester: '' });
+        setForm({ code: '', name: '', credits: 3, type: 'required', semester: '1' });
         setMenu(null);
         setDialog(true);
     }, [menu]);
@@ -568,7 +680,8 @@ const GraphPanelInner: React.FC<GraphPanelProps> = ({ label, labelColor, initNod
     const handleAddNode = useCallback(() => {
         if (!form.name.trim()) return;
         const id = `course-${Date.now()}`;
-        const data: CourseNodeData = { code: form.code.trim(), name: form.name.trim(), credits: form.credits, type: form.type, semester: form.semester.trim() };
+        const semesterLabel = `${form.semester} семестр`;
+        const data: CourseNodeData = { code: form.code.trim(), name: form.name.trim(), credits: form.credits, type: form.type, semester: semesterLabel };
         setNodes((prev) => [...prev, { id, type: 'courseNode', position: pendingPos, data } as Node<CourseNodeData>]);
         onDetailsChange({ ...details, [id]: { id, code: data.code, name: data.name, semester: data.semester, type: data.type, credits: data.credits, summary: '', students: { avatars: [], total: 0 }, teachers: [], materials: [] } });
         setDialog(false);
@@ -576,7 +689,7 @@ const GraphPanelInner: React.FC<GraphPanelProps> = ({ label, labelColor, initNod
     }, [form, pendingPos, setNodes, details, onDetailsChange, markDirty]);
 
     /* ── Dagre auto-layout ── */
-    const onAutoLayout = useCallback((direction: 'BT' | 'LR' = 'BT') => {
+    const onAutoLayout = useCallback((direction: 'TB' | 'LR' = 'TB') => {
         const { nodes: ln, edges: le } = getLayoutedElements(nodes, edges, direction);
         setNodes([...ln]);
         setEdges([...le]);
@@ -585,20 +698,26 @@ const GraphPanelInner: React.FC<GraphPanelProps> = ({ label, labelColor, initNod
     }, [nodes, edges, setNodes, setEdges, markDirty, fitView]);
 
     /* ── Save handler ── */
-    const handleSaveGraph = useCallback(() => {
+    const handleSaveGraph = useCallback(async () => {
+        if (!cohortId) return;
         setIsSaving(true);
-        // Simulate API call — collect payload
-        const _payload = {
-            nodes: nodes.map((n) => ({ id: n.id, position: n.position, data: n.data })),
-            edges: edges.map((e) => ({ id: e.id, source: e.source, target: e.target })),
-        };
-        // TODO: POST to backend
-        console.log('[Save graph]', _payload);
-        setTimeout(() => {
-            setIsSaving(false);
+        try {
+            const payload = flowDataToApiPayload(nodes, edges);
+            const result = await updateCohortGraph(cohortId, payload);
+            const newData = apiGraphToFlowData(result);
+            setNodes(newData.nodes);
+            setEdges(newData.edges);
+            onDetailsChange(newData.details);
+            onGraphSaved?.(newData);
             setIsDirty(false);
-        }, 600);
-    }, [nodes, edges]);
+            message.success('Граф успешно сохранён');
+        } catch (err: unknown) {
+            const msg = err instanceof Error ? err.message : 'Ошибка сохранения графа';
+            message.error(msg);
+        } finally {
+            setIsSaving(false);
+        }
+    }, [nodes, edges, cohortId, setNodes, setEdges, onDetailsChange, onGraphSaved]);
 
     return (
         <GraphEditContext.Provider value={{ invalidIds, onDeleteNode: handleDeleteNode, onDeleteEdge: handleDeleteEdge, readOnly, diff }}>
@@ -646,7 +765,7 @@ const GraphPanelInner: React.FC<GraphPanelProps> = ({ label, labelColor, initNod
                 {/* Toolbar panel */}
                 {!readOnly && (
                     <Panel position="top-right" className={styles.graphToolbar}>
-                        <button className={styles.toolbarBtn} onClick={() => onAutoLayout('BT')} title="Авто-раскладка (вертикальная)">
+                        <button className={styles.toolbarBtn} onClick={() => onAutoLayout('TB')} title="Авто-раскладка (вертикальная)">
                             <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><rect x="5.5" y="0.5" width="5" height="3" rx="0.75" stroke="currentColor" strokeWidth="1.1" /><rect x="0.5" y="12.5" width="5" height="3" rx="0.75" stroke="currentColor" strokeWidth="1.1" /><rect x="10.5" y="12.5" width="5" height="3" rx="0.75" stroke="currentColor" strokeWidth="1.1" /><path d="M8 3.5V9M8 9l-5 3.5M8 9l5 3.5" stroke="currentColor" strokeWidth="1.1" /></svg>
                             Авто
                         </button>
@@ -708,7 +827,11 @@ const GraphPanelInner: React.FC<GraphPanelProps> = ({ label, labelColor, initNod
                                 </div>
                             </div>
                             <label className={styles.dialogLabel}>СЕМЕСТР</label>
-                            <input className={styles.dialogInput} placeholder="Например: 3 семестр" value={form.semester} onChange={(e) => setForm((f) => ({ ...f, semester: e.target.value }))} />
+                            <select className={styles.dialogSelect} value={form.semester} onChange={(e) => setForm((f) => ({ ...f, semester: e.target.value }))}>
+                                {Array.from({ length: 12 }, (_, i) => i + 1).map((n) => (
+                                    <option key={n} value={String(n)}>{n} семестр</option>
+                                ))}
+                            </select>
                         </div>
                         <div className={styles.dialogFooter}>
                             <button className={styles.dialogBtnCancel} onClick={() => setDialog(false)}>Отмена</button>
@@ -960,7 +1083,8 @@ const DashboardPage: React.FC = () => {
     const [selectedProgram, setSelectedProgram] = useState<Program | null>(null);
     const [selectedYears, setSelectedYears] = useState<YearPlan[]>([]);
     const [selectedCourse, setSelectedCourse] = useState<CourseDetail | null>(null);
-    const [graphStore, setGraphStore] = useState(initialGraphStore);
+    const [graphStore, setGraphStore] = useState<Record<string, YearGraphData>>(initialGraphStore);
+    const [loadingGraph, setLoadingGraph] = useState(false);
     const [showCreateFaculty, setShowCreateFaculty] = useState(false);
     const [showCreateProgram, setShowCreateProgram] = useState(false);
     const [showCreateYear, setShowCreateYear] = useState(false);
@@ -1040,8 +1164,30 @@ const DashboardPage: React.FC = () => {
         });
     };
 
-    const handleOpenGraph = () => {
-        if (selectedYears.length > 0) setView('graph');
+    const handleOpenGraph = async () => {
+        if (selectedYears.length === 0) return;
+        setLoadingGraph(true);
+        setView('graph');
+        try {
+            const toLoad = selectedYears.filter((y) => !graphStore[y.id]);
+            const results = await Promise.all(
+                toLoad.map(async (y) => {
+                    const graph = await getCohortGraph(y.cohortId);
+                    return { yearId: y.id, data: apiGraphToFlowData(graph) };
+                }),
+            );
+            if (results.length > 0) {
+                setGraphStore((prev) => {
+                    const next = { ...prev };
+                    results.forEach(({ yearId, data }) => { next[yearId] = data; });
+                    return next;
+                });
+            }
+        } catch {
+            message.error('Не удалось загрузить граф учебного плана');
+        } finally {
+            setLoadingGraph(false);
+        }
     };
 
     const handleBack = () => {
@@ -1053,13 +1199,31 @@ const DashboardPage: React.FC = () => {
     const handleSave = useCallback((updated: CourseDetail) => {
         if (selectedYears.length > 0) {
             const yearId = selectedYears[0].id;
-            setGraphStore((prev) => ({
-                ...prev,
-                [yearId]: {
-                    ...getGraphDataForYear(prev, yearId),
-                    details: { ...getGraphDataForYear(prev, yearId).details, [updated.id]: updated },
-                },
-            }));
+            setGraphStore((prev) => {
+                const current = getGraphDataForYear(prev, yearId);
+                const updatedNodes = current.nodes.map((n) => {
+                    if (n.id !== updated.id) return n;
+                    return {
+                        ...n,
+                        data: {
+                            ...n.data,
+                            code: updated.code,
+                            name: updated.name,
+                            credits: updated.credits,
+                            type: updated.type,
+                            semester: updated.semester,
+                        },
+                    };
+                });
+                return {
+                    ...prev,
+                    [yearId]: {
+                        ...current,
+                        nodes: updatedNodes,
+                        details: { ...current.details, [updated.id]: updated },
+                    },
+                };
+            });
         }
         setSelectedCourse(updated);
     }, [selectedYears]);
@@ -1311,6 +1475,9 @@ const DashboardPage: React.FC = () => {
                         </div>
                     </div>
 
+                    {loadingGraph ? (
+                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', flex: 1, color: '#94A3B8', fontSize: 15 }}>Загрузка графа...</div>
+                    ) : (
                     <GraphPanel
                         key={selectedYears[0].id}
                         label={selectedYears[0].label}
@@ -1320,10 +1487,13 @@ const DashboardPage: React.FC = () => {
                         details={getGraphDataForYear(graphStore, selectedYears[0].id).details}
                         onSelectCourse={setSelectedCourse}
                         onDetailsChange={(d) => setGraphStore((prev) => ({ ...prev, [selectedYears[0].id]: { ...getGraphDataForYear(prev, selectedYears[0].id), details: d } }))}
+                        onGraphSaved={(data) => setGraphStore((prev) => ({ ...prev, [selectedYears[0].id]: data }))}
+                        cohortId={selectedYears[0].cohortId}
                         compact={isCompare}
                         readOnly={isCompare}
                         diff={compareDiff?.diffA}
                     />
+                    )}
 
                     {isCompare && (
                         <>
@@ -1339,6 +1509,7 @@ const DashboardPage: React.FC = () => {
                                 details={getGraphDataForYear(graphStore, selectedYears[1].id).details}
                                 onSelectCourse={setSelectedCourse}
                                 onDetailsChange={(d) => setGraphStore((prev) => ({ ...prev, [selectedYears[1].id]: { ...getGraphDataForYear(prev, selectedYears[1].id), details: d } }))}
+                                cohortId={selectedYears[1].cohortId}
                                 compact
                                 readOnly
                                 diff={compareDiff?.diffB}
