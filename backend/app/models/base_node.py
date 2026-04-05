@@ -1,7 +1,7 @@
 import re
 from datetime import date, datetime, time, timedelta, UTC
 from enum import Enum
-from typing import Optional, Any
+from typing import Optional, Any, Iterable
 
 from neomodel import AsyncStructuredNode, adb, AsyncRelationshipManager, AsyncNodeSet, AsyncOne, AsyncZeroOrMore, AsyncZeroOrOne, AsyncRelationshipDefinition
 from neomodel.exceptions import DoesNotExist
@@ -303,10 +303,12 @@ class BaseNode(AsyncStructuredNode):
         if not new_ids:
             if manager_type == AsyncOne:
                 raise ForeignKeyException()
-            data[f"{rel_field_name}_obj"] = None
+            return
 
         elif manager_type == AsyncZeroOrMore:
             new_nodes = []
+            if not isinstance(new_ids, Iterable) or isinstance(new_ids, str):
+                raise ValueError(f"Expected an iterable of IDs for {rel_field_name}, got {type(new_ids).__name__}")
             for new_id in new_ids:
                 node = await model.get_by_id(new_id)
                 if node is not None:
@@ -369,16 +371,17 @@ class BaseNode(AsyncStructuredNode):
         if not isinstance(manager, (AsyncZeroOrMore, AsyncOne, AsyncZeroOrOne)):
             raise ValueError(f"Unsupported relationship cardinality for {rel_field_name}: {manager.__class__.__name__}")
 
-        new_relation = data.pop(f"{rel_field_name}_obj")
+        new_relation = data.pop(f"{rel_field_name}_obj", None)
         old_relation = data.pop(f"old_{rel_field_name}", None)
 
         if not old_relation:
             if isinstance(manager, AsyncZeroOrMore):
-                for new_rel in (new_relation or []):
+                new_relation = new_relation or []
+                for new_rel in new_relation:
                     await manager.connect(new_rel)
             elif new_relation:
                 await manager.connect(new_relation)
-            self._relations[rel_field_name] = new_relation or []
+            self._relations[rel_field_name] = new_relation
 
         elif not new_relation:
             if isinstance(manager, AsyncOne):
@@ -389,23 +392,22 @@ class BaseNode(AsyncStructuredNode):
             else:
                 self._relations[rel_field_name] = None
 
-        else:
-            if isinstance(manager, (AsyncOne, AsyncZeroOrOne)):
-                if old_relation.pk_value != new_relation.pk_value:
-                    await manager.reconnect(old_relation, new_relation)
-                    self._relations[rel_field_name] = new_relation
-            else:
-                old_relations_ids = {node.pk_value for node in old_relation}
-                new_relations_ids = {node.pk_value for node in new_relation}
-                to_delete_ids = old_relations_ids - new_relations_ids
-                to_add_ids = new_relations_ids - old_relations_ids
-                to_delete_nodes = [node for node in old_relation if node.pk_value in to_delete_ids]
-                to_add_nodes = [node for node in new_relation if node.pk_value in to_add_ids]
-                for node in to_delete_nodes:
-                    await manager.disconnect(node)
-                for node in to_add_nodes:
-                    await manager.connect(node)
+        elif isinstance(manager, (AsyncOne, AsyncZeroOrOne)):
+            if old_relation.pk_value != new_relation.pk_value:
+                await manager.reconnect(old_relation, new_relation)
                 self._relations[rel_field_name] = new_relation
+        else:
+            old_relations_ids = {node.pk_value for node in old_relation}
+            new_relations_ids = {node.pk_value for node in new_relation}
+            to_delete_ids = old_relations_ids - new_relations_ids
+            to_add_ids = new_relations_ids - old_relations_ids
+            to_delete_nodes = [node for node in old_relation if node.pk_value in to_delete_ids]
+            to_add_nodes = [node for node in new_relation if node.pk_value in to_add_ids]
+            for node in to_delete_nodes:
+                await manager.disconnect(node)
+            for node in to_add_nodes:
+                await manager.connect(node)
+            self._relations[rel_field_name] = new_relation
 
     async def _after_update(self, data: DictStrAny) -> None:
         """Хук после обновления узла"""
