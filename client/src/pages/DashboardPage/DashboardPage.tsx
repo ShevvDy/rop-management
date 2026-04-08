@@ -2,6 +2,7 @@ import React, { useState, useCallback, useMemo, useRef, useEffect, createContext
 import { message } from 'antd';
 import { getPrograms, getProgram, createProgram as apiCreateProgram } from '../../api/programs';
 import { createCohort as apiCreateCohort, getCohortGraph, updateCohortGraph } from '../../api/cohorts';
+import { updateCourse } from '../../api/courses';
 import { getFaculties, createFaculty as apiCreateFaculty } from '../../api/faculties';
 import type { ProgramResponse, ProgramWithRelations, FacultyResponse, CohortInProgram, EducationPlanGraph } from '../../api/types';
 import {
@@ -23,54 +24,12 @@ import {
     type EdgeProps,
     type NodeProps,
     type Connection,
-    Position,
 } from '@xyflow/react';
 import '@xyflow/react/dist/style.css';
-import dagre from '@dagrejs/dagre';
+import { getLayoutedElements } from '../../utils/graphLayout';
 import CourseNode, { type CourseNodeData } from '../../components/CourseNode';
 import CourseDetailPanel, { type CourseDetail } from '../../components/CourseDetailPanel';
 import styles from './DashboardPage.module.css';
-
-/* ═══════════════════════════════════════════
-   Dagre auto-layout
-   ═══════════════════════════════════════════ */
-const NODE_WIDTH = 230;
-const NODE_BASE_HEIGHT = 110;
-const LINE_HEIGHT = 18;
-const NAME_CHARS_PER_LINE = 18;
-
-const estimateNodeHeight = (node: Node<CourseNodeData>) => {
-    const name = node.data?.name ?? '';
-    const lines = Math.max(1, Math.ceil(name.length / NAME_CHARS_PER_LINE));
-    return NODE_BASE_HEIGHT + (lines - 1) * LINE_HEIGHT;
-};
-
-const getLayoutedElements = (nodes: Node<CourseNodeData>[], edges: Edge[], direction: 'TB' | 'BT' | 'LR' | 'RL' = 'TB') => {
-    const g = new dagre.graphlib.Graph().setDefaultEdgeLabel(() => ({}));
-    g.setGraph({ rankdir: direction, nodesep: 80, ranksep: 100, edgesep: 40, align: 'UL' });
-    nodes.forEach((node) => {
-        const h = estimateNodeHeight(node);
-        g.setNode(node.id, { width: NODE_WIDTH, height: h });
-    });
-    edges.forEach((edge) => {
-        if (g.hasNode(edge.source) && g.hasNode(edge.target)) {
-            g.setEdge(edge.source, edge.target);
-        }
-    });
-    dagre.layout(g);
-
-    const isHorizontal = direction === 'LR' || direction === 'RL';
-    const layoutedNodes = nodes.map((node) => {
-        const pos = g.node(node.id);
-        return {
-            ...node,
-            position: { x: pos.x - NODE_WIDTH / 2, y: pos.y - pos.height / 2 },
-            targetPosition: isHorizontal ? Position.Left : Position.Top,
-            sourcePosition: isHorizontal ? Position.Right : Position.Bottom,
-        };
-    });
-    return { nodes: layoutedNodes, edges: [...edges] };
-};
 
 /* ═══════════════════════════════════════════
    Validation: check graph connectivity
@@ -240,6 +199,7 @@ interface Program {
     color: string;
     yearsCount: number;
     coursesCount: number;
+    durationYears: number;
 }
 
 interface YearPlan {
@@ -282,6 +242,7 @@ const mapProgramToUI = (p: ProgramResponse, index: number, cohorts?: CohortInPro
     color: PROGRAM_COLORS[index % PROGRAM_COLORS.length],
     yearsCount: cohorts?.length ?? 0,
     coursesCount: 0,
+    durationYears: p.duration_years,
 });
 
 const mapCohortToUI = (c: CohortInProgram): YearPlan => ({
@@ -500,7 +461,7 @@ const statusConfig: Record<string, { label: string; bg: string; color: string }>
     archived: { label: 'Архив', bg: '#F1F5F9', color: '#64748B' },
 };
 
-/* Pre-layout initial data */
+/* Pre-layout initial demo data */
 const { nodes: layoutedNodesA, edges: layoutedEdgesA } = getLayoutedElements(nodesVariantA, edgesMain);
 const { nodes: layoutedNodesB, edges: layoutedEdgesB } = getLayoutedElements(nodesVariantB, edgesVariantB);
 
@@ -554,9 +515,11 @@ interface GraphPanelProps {
     compact?: boolean;
     readOnly?: boolean;
     diff?: DiffInfo | null;
+    durationYears?: number;
 }
 
-const GraphPanelInner: React.FC<GraphPanelProps> = ({ label, labelColor, initNodes, initEdges, details, onSelectCourse, onDetailsChange, onGraphSaved, cohortId, compact, readOnly = false, diff = null }) => {
+const GraphPanelInner: React.FC<GraphPanelProps> = ({ label, labelColor, initNodes, initEdges, details, onSelectCourse, onDetailsChange, onGraphSaved, cohortId, compact, readOnly = false, diff = null, durationYears }) => {
+    const semestersCount = Math.max(1, (durationYears ?? 4) * 2);
     const [nodes, setNodes, onNodesChange] = useNodesState(initNodes);
     const [edges, setEdges, onEdgesChange] = useEdgesState(initEdges);
 
@@ -682,11 +645,15 @@ const GraphPanelInner: React.FC<GraphPanelProps> = ({ label, labelColor, initNod
         const id = `course-${Date.now()}`;
         const semesterLabel = `${form.semester} семестр`;
         const data: CourseNodeData = { code: form.code.trim(), name: form.name.trim(), credits: form.credits, type: form.type, semester: semesterLabel };
-        setNodes((prev) => [...prev, { id, type: 'courseNode', position: pendingPos, data } as Node<CourseNodeData>]);
+        const newNode: Node<CourseNodeData> = { id, type: 'courseNode', position: pendingPos, data };
+        const { nodes: ln, edges: le } = getLayoutedElements([...nodes, newNode], edges);
+        setNodes([...ln]);
+        setEdges([...le]);
         onDetailsChange({ ...details, [id]: { id, code: data.code, name: data.name, semester: data.semester, type: data.type, credits: data.credits, summary: '', students: { avatars: [], total: 0 }, teachers: [], materials: [] } });
         setDialog(false);
         markDirty();
-    }, [form, pendingPos, setNodes, details, onDetailsChange, markDirty]);
+        requestAnimationFrame(() => fitView({ padding: 0.3 }));
+    }, [form, pendingPos, nodes, edges, setNodes, setEdges, details, onDetailsChange, markDirty, fitView]);
 
     /* ── Dagre auto-layout ── */
     const onAutoLayout = useCallback((direction: 'TB' | 'LR' = 'TB') => {
@@ -823,12 +790,12 @@ const GraphPanelInner: React.FC<GraphPanelProps> = ({ label, labelColor, initNod
                                 </div>
                                 <div className={styles.dialogField}>
                                     <label className={styles.dialogLabel}>ЧАСЫ</label>
-                                    <input className={styles.dialogInput} type="number" min={1} max={10} value={form.credits} onChange={(e) => setForm((f) => ({ ...f, credits: Number(e.target.value) }))} />
+                                    <input className={styles.dialogInput} type="number" min={1} max={10} value={form.credits === 0 ? '' : form.credits} onChange={(e) => { const v = e.target.value; setForm((f) => ({ ...f, credits: v === '' ? 0 : Number(v) })); }} />
                                 </div>
                             </div>
                             <label className={styles.dialogLabel}>СЕМЕСТР</label>
                             <select className={styles.dialogSelect} value={form.semester} onChange={(e) => setForm((f) => ({ ...f, semester: e.target.value }))}>
-                                {Array.from({ length: 12 }, (_, i) => i + 1).map((n) => (
+                                {Array.from({ length: semestersCount }, (_, i) => i + 1).map((n) => (
                                     <option key={n} value={String(n)}>{n} семестр</option>
                                 ))}
                             </select>
@@ -1196,7 +1163,7 @@ const DashboardPage: React.FC = () => {
         else if (view === 'programs') { setView('faculties'); setSelectedFaculty(null); setSelectedProgram(null); setSelectedYears([]); }
     };
 
-    const handleSave = useCallback((updated: CourseDetail) => {
+    const applyCourseUpdate = useCallback((updated: CourseDetail) => {
         if (selectedYears.length > 0) {
             const yearId = selectedYears[0].id;
             setGraphStore((prev) => {
@@ -1227,6 +1194,32 @@ const DashboardPage: React.FC = () => {
         }
         setSelectedCourse(updated);
     }, [selectedYears]);
+
+    const handleSave = useCallback(async (updated: CourseDetail) => {
+        /* Локально добавленные ноды (id вида "course-12345") пока не имеют backend course_id —
+           для них сохраняем только в локальном стейте, в рамках общего сохранения графа. */
+        const courseId = /^\d+$/.test(updated.id) ? Number(updated.id) : null;
+        if (courseId === null) {
+            applyCourseUpdate(updated);
+            return;
+        }
+        const semMatch = updated.semester?.match(/(\d+)/);
+        const semesterNumber = semMatch ? Number(semMatch[1]) : 1;
+        try {
+            await updateCourse(courseId, {
+                name: updated.name,
+                code: updated.code,
+                semester_number: semesterNumber,
+                credits: updated.credits,
+                is_elective: updated.type === 'elective',
+            });
+            applyCourseUpdate(updated);
+            message.success('Дисциплина обновлена');
+        } catch (err: unknown) {
+            const msg = err instanceof Error ? err.message : 'Ошибка сохранения дисциплины';
+            message.error(msg);
+        }
+    }, [applyCourseUpdate]);
 
     const isCompare = selectedYears.length === 2;
 
@@ -1492,6 +1485,7 @@ const DashboardPage: React.FC = () => {
                         compact={isCompare}
                         readOnly={isCompare}
                         diff={compareDiff?.diffA}
+                        durationYears={selectedProgram.durationYears}
                     />
                     )}
 
@@ -1513,6 +1507,7 @@ const DashboardPage: React.FC = () => {
                                 compact
                                 readOnly
                                 diff={compareDiff?.diffB}
+                                durationYears={selectedProgram.durationYears}
                             />
                         </>
                     )}

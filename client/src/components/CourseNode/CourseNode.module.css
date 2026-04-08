@@ -3,8 +3,8 @@
   border: 2px solid #CBD5E1;
   border-radius: 10px;
   padding: 14px 16px;
-  min-width: 190px;
-  max-width: 220px;
+  width: 220px;
+  box-sizing: border-box;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
   cursor: pointer;
   transition: box-shadow 0.15s, transform 0.15s;
@@ -56,7 +56,24 @@
   color: var(--text);
   line-height: 1.35;
   margin-bottom: 8px;
-  white-space: pre-line;
+  /* Ровно 2 строки — фиксируем высоту, чтобы все ноды были одинакового размера */
+  height: calc(13px * 1.35 * 2);
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  word-break: break-word;
+}
+
+.nameSingleLine {
+  display: -webkit-box;
+  -webkit-line-clamp: 1;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: normal;
+  word-break: break-word;
 }
 
 .footer {

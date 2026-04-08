@@ -604,6 +604,18 @@ const CourseEditModal: React.FC<CourseEditModalProps> = ({ course, onClose, onSa
         summary: course.summary,
     });
 
+    /* Re-initialize the form whenever a different course is passed in */
+    useEffect(() => {
+        setForm({
+            name: course.name,
+            code: course.code,
+            semester: course.semester,
+            type: course.type,
+            credits: course.credits,
+            summary: course.summary,
+        });
+    }, [course.id]);
+
     useEffect(() => {
         const handleKey = (e: KeyboardEvent) => {
             if (e.key === 'Escape') onClose();
@@ -694,8 +706,11 @@ const CourseEditModal: React.FC<CourseEditModalProps> = ({ course, onClose, onSa
                                 type="number"
                                 min={1}
                                 max={12}
-                                value={form.credits}
-                                onChange={(e) => setForm({ ...form, credits: Number(e.target.value) })}
+                                value={form.credits === 0 ? '' : form.credits}
+                                onChange={(e) => {
+                                    const v = e.target.value;
+                                    setForm({ ...form, credits: v === '' ? 0 : Number(v) });
+                                }}
                             />
                         </div>
                     </div>
@@ -742,7 +757,15 @@ const CourseDetailPanel: React.FC<CourseDetailPanelProps> = ({ course, onClose, 
     const typeInfo = typeLabels[course.type] || typeLabels.core;
 
     const handleSave = (form: EditForm) => {
-        onSave?.({ ...course, ...form });
+        onSave?.({
+            ...course,
+            name: form.name,
+            code: form.code,
+            semester: form.semester,
+            type: form.type,
+            credits: form.credits,
+            summary: form.summary,
+        });
         setIsEditing(false);
     };
 
