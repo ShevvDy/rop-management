@@ -11,27 +11,27 @@ router = APIRouter(prefix="/student", tags=["student"])
 async def create_student(student: StudentCreateSchema):
     """Создать нового студента"""
     student = await Student.create_node(student.model_dump())
-    await student.load_relations('cohort.program', 'group.specialization')
+    await student.load_relations('cohort.program', 'specialization')
     return student
 
 
 @router.get("", response_model=List[StudentResponseSchema])
 async def get_students(skip: int = 0, limit: int = 100):
     """Получить список всех студентов"""
-    return await Student.get_list(skip=skip, limit=limit, relations=['user', 'cohort.program', 'group.specialization'])
+    return await Student.get_list(skip=skip, limit=limit, relations=['user', 'cohort.program', 'specialization'])
 
 
 @router.get("/{student_id}", response_model=StudentResponseSchema)
 async def get_student(student_id: int):
     """Получить студента по ID"""
-    return await Student.get_by_id(student_id, relations=['user', 'cohort.program', 'group.specialization'])
+    return await Student.get_by_id(student_id, relations=['user', 'cohort.program', 'specialization'])
 
 
 @router.put("/{student_id}", response_model=StudentResponseSchema)
 async def update_student(student_id: int, student_update: StudentUpdateSchema):
     """Обновить данные студента"""
     student = await Student.update_node(student_id, student_update.model_dump(exclude_unset=True))
-    await student.load_relations('cohort.program', 'group.specialization')
+    await student.load_relations('cohort.program', 'specialization')
     return student
 
 

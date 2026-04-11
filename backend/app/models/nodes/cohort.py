@@ -1,3 +1,5 @@
+from typing import Any
+
 from neomodel import (
     IntegerProperty,
     AsyncRelationshipFrom,
@@ -52,12 +54,6 @@ class Cohort(BaseNode):
         AsyncZeroOrMore,
     )
 
-    groups_rel = AsyncRelationshipFrom(
-        ".group.Group",
-        "BELONGS_TO_COHORT",
-        AsyncZeroOrMore,
-    )
-
     @classmethod
     async def _before_creation(cls, data: DictStrAny) -> None:
         from .program import Program
@@ -81,3 +77,23 @@ class Cohort(BaseNode):
     async def _after_update(self, data: DictStrAny) -> None:
         await self._update_relationship(data, 'director')
         await self._update_relationship(data, 'manager')
+
+    async def get_students(self) -> dict[str, list[dict[str, Any]]]:
+        await self.load_relations('specializations', 'students.user', 'students.specialization')
+        students = []
+        for student in self.students:
+            students.append({
+                'student_id': student.student_id,
+                'start_date': student.start_date,
+                'end_date': student.end_date,
+                'status': student.status,
+                'user': student.user,
+                'specialization_id': student.specialization.specialization_id if student.specialization else None,
+            })
+        specializations = []
+        for specialization in self.specializations:
+            specializations.append({
+                'name': specialization.name,
+                'specialization_id': specialization.specialization_id,
+            })
+        return {"students": students, "specializations": specializations}

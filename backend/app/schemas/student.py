@@ -16,6 +16,7 @@ class StudentCreateSchema(StudentBaseSchema):
     student_id: Optional[int] = Field(None, exclude=True)
     user_id: int = Field(..., description="ID пользователя")
     cohort_id: int = Field(..., description="ID года набора")
+    specialization_id: Optional[int] = Field(None, description="ID специализации")
 
 
 class StudentUpdateSchema(BaseModel):
@@ -27,22 +28,17 @@ class StudentUpdateSchema(BaseModel):
 class StudentResponseSchema(StudentBaseSchema):
     from .user import UserBaseSchema
     from .cohort import CohortBaseSchema
-    from .group import GroupBaseSchema
+    from .specialization import SpecializationBaseSchema
 
     UserBaseSchema: ClassVar
     CohortBaseSchema: ClassVar
-    GroupBaseSchema: ClassVar
+    SpecializationBaseSchema: ClassVar
 
     class Cohort(CohortBaseSchema):
         from .program import ProgramBaseSchema
         ProgramBaseSchema: ClassVar
         program: ProgramBaseSchema = Field(..., description="Программа обучения набора")
 
-    class Group(GroupBaseSchema):
-        from .specialization import SpecializationBaseSchema
-        SpecializationBaseSchema: ClassVar
-        specialization: Optional[SpecializationBaseSchema] = Field(None, description="Специализация группы")
-
     user: UserBaseSchema = Field(..., description="Пользователь")
     cohort: Cohort = Field(..., description="Год набора")
-    group: Optional[Group] = Field(None, description="Группа студента")
+    specialization: Optional[SpecializationBaseSchema] = Field(None, description="Специализация группы")

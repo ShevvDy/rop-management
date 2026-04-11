@@ -25,9 +25,9 @@ class Specialization(BaseNode):
     )
 
     # Связи (входящие)
-    groups_rel = AsyncRelationshipFrom(
-        ".group.Group",
-        "BELONGS_TO_SPECIALIZATION",
+    students_rel = AsyncRelationshipFrom(
+        ".student.Student",
+        "ENROLLED_IN_SPECIALIZATION",
         AsyncZeroOrMore,
     )
 
