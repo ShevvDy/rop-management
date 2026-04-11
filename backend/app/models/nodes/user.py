@@ -4,7 +4,7 @@ from neomodel import (
     DateTimeProperty,
     AsyncRelationshipFrom,
     AsyncRelationshipTo,
-    AsyncZeroOrMore,
+    AsyncZeroOrMore, BooleanProperty,
 )
 
 from ..base_node import BaseNode
@@ -25,6 +25,7 @@ class User(BaseNode):
     email = StringProperty(index=True)
     phone = StringProperty()
     isu_id = IntegerProperty(index=True)
+    is_admin = BooleanProperty(default=False)
     created_at = DateTimeProperty(default=BaseNode.now)
     updated_at = DateTimeProperty(default=BaseNode.now)
 

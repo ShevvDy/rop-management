@@ -34,28 +34,3 @@ class SpecializationResponseSchema(SpecializationBaseSchema):
         manager: Optional[UserBaseSchema] = Field(None, description="Менеджер ОП набора")
 
     cohort: Optional[Cohort] = Field(None, description="Год набора специализации")
-
-
-class SpecializationWithRelationsSchema(SpecializationResponseSchema):
-    from .group import GroupBaseSchema
-
-    GroupBaseSchema: ClassVar
-
-    class Group(GroupBaseSchema):
-        from .cohort import CohortBaseSchema
-        CohortBaseSchema: ClassVar
-
-        class Cohort(CohortBaseSchema):
-            from .program import ProgramBaseSchema
-            from .user import UserBaseSchema
-            ProgramBaseSchema: ClassVar
-            UserBaseSchema: ClassVar
-
-            program: ProgramBaseSchema = Field(..., description="Программа обучения набора")
-            director: Optional[UserBaseSchema] = Field(None, description="Руководитель ОП набора")
-            manager: Optional[UserBaseSchema] = Field(None, description="Менеджер ОП набора")
-
-        cohort: Cohort = Field(..., description="Набор группы")
-        specialization: Optional[SpecializationBaseSchema] = Field(None, description="Специализация группы")
-
-    groups: list[Group] = Field(default=[], description="Группы специализации")

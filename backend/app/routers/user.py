@@ -17,12 +17,12 @@ async def create_user(user: UserCreateSchema):
 @router.get("", response_model=List[UserWithRelationsSchema])
 async def get_users(skip: int = 0, limit: int = 100):
     """Получить список всех пользователей"""
-    return await User.get_list(
+    users_list = await User.get_list(
         skip=skip,
         limit=limit,
         relations=[
             'tags',
-            'student_data.group',
+            'student_data.specialization',
             'student_data.cohort.program',
             'teacher_data',
             'directed_cohorts.program',
@@ -38,7 +38,7 @@ async def get_user(user_id: int):
         user_id,
         relations=[
             'tags',
-            'student_data.group',
+            'student_data.specialization',
             'student_data.cohort.program',
             'teacher_data',
             'directed_cohorts.program',

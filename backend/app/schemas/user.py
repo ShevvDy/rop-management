@@ -52,10 +52,8 @@ class UserWithRelationsSchema(UserResponseSchema):
 
     class Student(StudentBaseSchema):
         from .cohort import CohortBaseSchema
-        from .group import GroupBaseSchema
 
         CohortBaseSchema: ClassVar
-        GroupBaseSchema: ClassVar
 
         class Cohort(CohortBaseSchema):
             from .program import ProgramBaseSchema
@@ -63,7 +61,6 @@ class UserWithRelationsSchema(UserResponseSchema):
             program: ProgramBaseSchema = Field(..., description="Программа обучения набора")
 
         cohort: Cohort = Field(..., description="Год набора")
-        group: Optional[GroupBaseSchema] = Field(None, description="Группа студента")
 
     student_data: list[Student] = Field(default=[], description="Данные студента")
     teacher_data: list[TeacherBaseSchema] = Field(default=[], description="Данные преподавателя")

@@ -4,7 +4,7 @@ from neomodel import (
     StringProperty,
     IntegerProperty,
     AsyncOne,
-    AsyncZeroOrOne,
+    AsyncZeroOrOne, AsyncZeroOrMore,
 )
 
 from ..base_node import BaseNode
@@ -36,10 +36,16 @@ class Student(BaseNode):
         AsyncOne,
     )
 
-    group_rel = AsyncRelationshipTo(
-        ".group.Group",
-        "STUDIES_IN_GROUP",
+    specialization_rel = AsyncRelationshipTo(
+        ".specialization.Specialization",
+        "ENROLLED_IN_SPECIALIZATION",
         AsyncZeroOrOne,
+    )
+
+    elective_courses_rel = AsyncRelationshipTo(
+        ".course.Course",
+        "SELECTED_COURSE",
+        AsyncZeroOrMore,
     )
 
     def is_active(self) -> bool:
@@ -51,13 +57,13 @@ class Student(BaseNode):
     async def _before_creation(cls, data: DictStrAny) -> None:
         from .user import User
         from .cohort import Cohort
-        from .group import Group
+        from .specialization import Specialization
 
         await cls._check_relationship_before_creation(data, 'user', User)
         await cls._check_relationship_before_creation(data, 'cohort', Cohort)
-        await cls._check_relationship_before_creation(data, 'group', Group)
+        await cls._check_relationship_before_creation(data, 'specialization', Specialization)
 
     async def _after_creation(self, data: DictStrAny) -> None:
         await self._update_relationship(data, 'user')
         await self._update_relationship(data, 'cohort')
-        await self._update_relationship(data, 'group')
+        await self._update_relationship(data, 'specialization')

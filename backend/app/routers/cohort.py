@@ -1,8 +1,10 @@
 from fastapi import APIRouter, status
 from typing import List
 
-from ..models import Cohort, Course
-from ..schemas import CohortCreateSchema, CohortUpdateSchema, CohortResponseSchema, CohortWithRelationsSchema, EducationPlanSchema
+from ..exceptions import BadRequestException
+from ..models import Cohort, Course, Student, Specialization
+from ..schemas import CohortCreateSchema, CohortUpdateSchema, CohortResponseSchema, CohortWithRelationsSchema, \
+    EducationPlanSchema, CohortStudentsResponseSchema, CohortStudentUpdateSchema
 
 router = APIRouter(prefix="/cohort", tags=["cohort"])
 
@@ -22,7 +24,7 @@ async def get_cohorts(skip: int = 0, limit: int = 100):
 @router.get("/{cohort_id}", response_model=CohortWithRelationsSchema)
 async def get_cohort(cohort_id: int):
     """Получить поток по учебному году по ID"""
-    return await Cohort.get_by_id(cohort_id, relations=['program.faculty', 'director', 'manager', 'specializations', 'groups'])
+    return await Cohort.get_by_id(cohort_id, relations=['program.faculty', 'director', 'manager', 'specializations'])
 
 
 @router.put("/{cohort_id}", response_model=CohortResponseSchema)
@@ -42,13 +44,8 @@ async def delete_cohort(cohort_id: int):
 @router.get("/{cohort_id}/graph", response_model=EducationPlanSchema)
 async def get_cohort_education_plan_graph(cohort_id: int):
     """Получить граф учебного плана потока по учебному году"""
-    cohort = await Cohort.get_by_id(cohort_id, relations=['courses.prerequisites'])
-    education_plan = {"nodes": [], "edges": []}
-    for course in sorted(cohort.courses, key=lambda c: c.semester_number):
-        education_plan["nodes"].append(course)
-        for prereq in course.prerequisites:
-            education_plan["edges"].append({"source": prereq.course_id, "target": course.course_id})
-    return education_plan
+    cohort = await Cohort.get_by_id(cohort_id)
+    return await cohort.get_education_plan()
 
 
 @router.put("/{cohort_id}/graph", response_model=EducationPlanSchema)
@@ -63,11 +60,49 @@ async def update_cohort_education_plan_graph(cohort_id: int, education_plan: Edu
     await Course.update_cohort_courses(cohort, nodes_dict, edges_dict)
 
     # Получаем обновленную когорту с курсами для возврата
-    await cohort.refresh_node('courses.prerequisites')
-    result = {"nodes": [], "edges": []}
-    for course in sorted(cohort.courses, key=lambda c: c.semester_number):
-        result["nodes"].append(course)
-        for prereq in course.prerequisites:
-            result["edges"].append({"source": prereq.course_id, "target": course.course_id})
+    await cohort.refresh_node()
+    return await cohort.get_education_plan()
 
-    return result
+
+@router.get('/{cohort_id}/students', response_model=CohortStudentsResponseSchema)
+async def get_cohort_students(cohort_id: int):
+    cohort = await Cohort.get_by_id(cohort_id)
+    return await cohort.get_students()
+
+
+@router.put('/{cohort_id}/students', response_model=CohortStudentsResponseSchema)
+async def update_cohort_students(cohort_id: int, students: list[CohortStudentUpdateSchema]):
+    cohort = await Cohort.get_by_id(cohort_id)
+    students_update = []
+
+    for student in students:
+        student_id = student.student_id
+        specialization_id = student.specialization_id
+        student_node = await Student.get_by_id(student_id, relations=['cohort', 'specialization'])
+        if student_node.cohort.cohort_id != cohort.cohort_id:
+            raise BadRequestException(message=f"Студент {student_id} не числится в указанном годе набора")
+        if specialization_id is None:
+            students_update.append({'student': student_node, 'specialization': specialization_id})
+        else:
+            specialization_node = await Specialization.get_by_id(specialization_id, relations=['cohort'])
+            if specialization_node.cohort.cohort_id != cohort.cohort_id:
+                raise BadRequestException(message=f"Специализация '{specialization_node.name}' не относится к указанному году набора")
+            students_update.append({'student': student_node, 'specialization': specialization_node})
+
+    for update_data in students_update:
+        student = update_data['student']
+        specialization = update_data['specialization']
+
+        if student.specialization is not None:
+            if (
+                specialization is not None and
+                student.specialization.specialization_id == specialization.specialization_id
+            ):
+                continue
+            await student.specialization_rel.disconnect_all()
+
+        if specialization is not None:
+            await student.specialization_rel.connect(specialization)
+
+    await cohort.refresh_node()
+    return await cohort.get_students()
