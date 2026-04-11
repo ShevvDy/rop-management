@@ -1,5 +1,6 @@
 from fastapi import FastAPI
 
+from .auth import router as auth_router
 from .cohort import router as cohort_router
 from .course import router as course_router
 from .faculty import router as faculty_router
@@ -13,6 +14,7 @@ from .user import router as user_router
 
 def init_routers(app: FastAPI) -> None:
     """Инициализация всех роутеров приложения"""
+    app.include_router(auth_router)
     app.include_router(cohort_router)
     app.include_router(course_router)
     app.include_router(faculty_router)

@@ -1,3 +1,4 @@
+from .auth import GetAccessTokenSchema, GetRefreshTokenSchema, TokenResponseSchema
 from .cohort import CohortBaseSchema, CohortCreateSchema, CohortUpdateSchema, CohortResponseSchema, CohortWithRelationsSchema, EducationPlanSchema, CohortStudentsResponseSchema, CohortStudentUpdateSchema
 from .course import CourseBaseSchema, CourseCreateSchema, CourseUpdateSchema, CourseResponseSchema
 from .faculty import FacultyBaseSchema, FacultyCreateSchema, FacultyUpdateSchema, FacultyResponseSchema
@@ -9,6 +10,7 @@ from .teacher import TeacherBaseSchema, TeacherCreateSchema, TeacherUpdateSchema
 from .user import UserBaseSchema, UserCreateSchema, UserUpdateSchema, UserResponseSchema, UserWithRelationsSchema
 
 __all__ = [
+    "GetAccessTokenSchema", "GetRefreshTokenSchema", "TokenResponseSchema",
     "CohortBaseSchema", "CohortCreateSchema", "CohortUpdateSchema", "CohortResponseSchema", "CohortWithRelationsSchema", "EducationPlanSchema",
     "CohortStudentsResponseSchema", "CohortStudentUpdateSchema",
     "CourseBaseSchema", "CourseCreateSchema", "CourseUpdateSchema", "CourseResponseSchema",
