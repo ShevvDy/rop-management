@@ -70,6 +70,12 @@ class Course(BaseNode):
         AsyncZeroOrMore,
     )
 
+    elective_students_rel = AsyncRelationshipFrom(
+        ".student.Student",
+        "SELECTED_COURSE",
+        AsyncZeroOrMore,
+    )
+
     @classmethod
     async def _before_creation(cls, data: DictStrAny) -> None:
         from .cohort import Cohort
@@ -90,15 +96,48 @@ class Course(BaseNode):
     async def _before_update(self, data: DictStrAny) -> None:
         from .specialization import Specialization
         from .tag import Tag
+        from .student import Student
 
         await self._check_relationship_before_update(data, 'specialization', Specialization)
+        specialization = data.get('specialization_obj')
+        if specialization:
+            await specialization.load_relations('cohort')
+            await self.load_relations('cohort')
+            if self.cohort.cohort_id != specialization.cohort.cohort_id:
+                del data['specialization_obj']
+
         await self._check_relationship_before_update(data, "prerequisites", self.__class__)
         await self._check_relationship_before_update(data, "tags", Tag)
+
+        if data.get('is_elective') is False or data.get('is_elective') is None and not self.is_elective:
+            data['elective_students_ids'] = None
+        await self._check_relationship_before_update(data, "elective_students", Student)
+
+        await self.load_relations('cohort', 'specialization')
+        course_cohort_id = self.cohort.cohort_id
+        if spec := data.get('specialization_obj'):
+            course_specialization_id = spec.specialization_id
+        else:
+            course_specialization_id = self.specialization.specialization_id if self.specialization else None
+        elective_students = data.get('elective_students_obj') or []
+        correct_students = []
+
+        for student in elective_students:
+            await student.load_relations('cohort', 'specialization')
+            if student.cohort.cohort_id != course_cohort_id:
+                continue
+            student_specialization_id = student.specialization.specialization_id if student.specialization else None
+            if course_specialization_id and student_specialization_id != course_specialization_id:
+                continue
+            correct_students.append(student)
+
+        data['elective_students_obj'] = correct_students
 
     async def _after_update(self, data: DictStrAny) -> None:
         await self._update_relationship(data, 'specialization')
         await self._update_relationship(data, "prerequisites")
         await self._update_relationship(data, "tags")
+        await self._update_relationship(data, "elective_students")
 
     @classmethod
     async def check_nodes(cls, data: list[DictStrAny], total_semesters: int) -> CourseNodes:

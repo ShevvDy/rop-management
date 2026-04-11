@@ -38,11 +38,27 @@ class CourseUpdateSchema(BaseModel):
     specialization_id: Optional[int] = Field(None, description="ID специализации")
     prerequisites_ids: Optional[list[int]] = Field(default=None, description="Список ID курсов-пререквизитов")
     tags_ids: Optional[list[int]] = Field(default=None, description="Список ID тегов курса")
+    elective_students_ids: Optional[list[int]] = Field(default=None, description="Студенты, выбравшие курс")
 
 
 class CourseResponseSchema(CourseBaseSchema):
+    from .cohort import CohortBaseSchema
+    from .specialization import SpecializationBaseSchema
     from .tag import TagBaseSchema
-    TagBaseSchema: ClassVar
+    from .student import StudentBaseSchema
 
+    CohortBaseSchema: ClassVar
+    SpecializationBaseSchema: ClassVar
+    TagBaseSchema: ClassVar
+    StudentBaseSchema: ClassVar
+
+    class Student(StudentBaseSchema):
+        from .user import UserBaseSchema
+        UserBaseSchema: ClassVar
+        user: UserBaseSchema = Field(..., description="Пользователь")
+
+    cohort: CohortBaseSchema = Field(..., description="Год набора")
+    specialization: Optional[SpecializationBaseSchema] = Field(None, description="Специализация")
     tags: list[TagBaseSchema] = Field(default=[], description="Список тегов курса")
     prerequisites: list[CourseBaseSchema] = Field(default=[], description="Список курсов-пререквизитов")
+    elective_students: list[Student] = Field([], description="Студенты, выбравшие курс")

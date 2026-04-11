@@ -43,7 +43,7 @@ class CohortWithRelationsSchema(CohortResponseSchema):
     specializations: list[SpecializationBaseSchema] = Field(..., description="Список специализаций набора")
 
 
-class EducationPlanSchema(BaseModel):
+class EducationPlanUpdateSchema(BaseModel):
     from .course import CourseBaseSchema
     CourseBaseSchema: ClassVar
 
@@ -56,6 +56,16 @@ class EducationPlanSchema(BaseModel):
 
     nodes: list[Node] = Field(..., description="Список курсов учебного плана")
     edges: list[Edge] = Field(..., description="Список рёбер между курсами учебного плана")
+
+
+class EducationPlanSchema(EducationPlanUpdateSchema):
+    from .course import CourseBaseSchema
+    CourseBaseSchema: ClassVar
+
+    class Node(CourseBaseSchema):
+        elective_students_ids: list[int] = Field([], description="Студенты, записанные на курс")
+
+    nodes: list[Node] = Field(..., description="Список курсов учебного плана")
 
 
 class CohortStudentsResponseSchema(BaseModel):

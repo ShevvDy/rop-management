@@ -3,7 +3,8 @@ from typing import List
 
 from ..exceptions import BadRequestException
 from ..models import Cohort, Course, Student, Specialization
-from ..schemas import CohortCreateSchema, CohortUpdateSchema, CohortResponseSchema, CohortWithRelationsSchema, EducationPlanSchema, CohortStudentsResponseSchema, CohortStudentUpdateSchema
+from ..schemas import CohortCreateSchema, CohortUpdateSchema, CohortResponseSchema, CohortWithRelationsSchema, \
+    EducationPlanSchema, CohortStudentsResponseSchema, CohortStudentUpdateSchema, EducationPlanUpdateSchema
 
 router = APIRouter(prefix="/cohort", tags=["cohort"])
 
@@ -43,17 +44,12 @@ async def delete_cohort(cohort_id: int):
 @router.get("/{cohort_id}/graph", response_model=EducationPlanSchema)
 async def get_cohort_education_plan_graph(cohort_id: int):
     """Получить граф учебного плана потока по учебному году"""
-    cohort = await Cohort.get_by_id(cohort_id, relations=['courses.prerequisites'])
-    education_plan = {"nodes": [], "edges": []}
-    for course in sorted(cohort.courses, key=lambda c: c.semester_number):
-        education_plan["nodes"].append(course)
-        for prereq in course.prerequisites:
-            education_plan["edges"].append({"source": prereq.course_id, "target": course.course_id})
-    return education_plan
+    cohort = await Cohort.get_by_id(cohort_id)
+    return await cohort.get_education_plan()
 
 
 @router.put("/{cohort_id}/graph", response_model=EducationPlanSchema)
-async def update_cohort_education_plan_graph(cohort_id: int, education_plan: EducationPlanSchema):
+async def update_cohort_education_plan_graph(cohort_id: int, education_plan: EducationPlanUpdateSchema):
     """Обновить граф учебного плана потока по учебному году"""
     cohort = await Cohort.get_by_id(cohort_id, relations=['courses.prerequisites', 'program'])
     education_plan = education_plan.model_dump(exclude_unset=True)
@@ -64,14 +60,8 @@ async def update_cohort_education_plan_graph(cohort_id: int, education_plan: Edu
     await Course.update_cohort_courses(cohort, nodes_dict, edges_dict)
 
     # Получаем обновленную когорту с курсами для возврата
-    await cohort.refresh_node('courses.prerequisites')
-    result = {"nodes": [], "edges": []}
-    for course in sorted(cohort.courses, key=lambda c: c.semester_number):
-        result["nodes"].append(course)
-        for prereq in course.prerequisites:
-            result["edges"].append({"source": prereq.course_id, "target": course.course_id})
-
-    return result
+    await cohort.refresh_node()
+    return await cohort.get_education_plan()
 
 
 @router.get('/{cohort_id}/students', response_model=CohortStudentsResponseSchema)

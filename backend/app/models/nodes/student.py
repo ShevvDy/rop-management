@@ -4,7 +4,7 @@ from neomodel import (
     StringProperty,
     IntegerProperty,
     AsyncOne,
-    AsyncZeroOrOne,
+    AsyncZeroOrOne, AsyncZeroOrMore,
 )
 
 from ..base_node import BaseNode
@@ -40,6 +40,12 @@ class Student(BaseNode):
         ".specialization.Specialization",
         "ENROLLED_IN_SPECIALIZATION",
         AsyncZeroOrOne,
+    )
+
+    elective_courses_rel = AsyncRelationshipTo(
+        ".course.Course",
+        "SELECTED_COURSE",
+        AsyncZeroOrMore,
     )
 
     def is_active(self) -> bool:
