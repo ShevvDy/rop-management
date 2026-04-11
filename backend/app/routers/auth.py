@@ -97,3 +97,9 @@ def login_view():
         'code_challenge': code_challenge,
         'auth_url': render_data['auth_url'] + code_challenge,
     }
+
+@router.get('/callback', response_model=dict)
+def callback_view(code: str):
+    return {
+        'code': code,
+    }
