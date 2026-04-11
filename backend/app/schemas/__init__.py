@@ -1,4 +1,4 @@
-from .cohort import CohortBaseSchema, CohortCreateSchema, CohortUpdateSchema, CohortResponseSchema, CohortWithRelationsSchema, EducationPlanSchema, EducationPlanUpdateSchema, CohortStudentsResponseSchema, CohortStudentUpdateSchema
+from .cohort import CohortBaseSchema, CohortCreateSchema, CohortUpdateSchema, CohortResponseSchema, CohortWithRelationsSchema, EducationPlanSchema, CohortStudentsResponseSchema, CohortStudentUpdateSchema
 from .course import CourseBaseSchema, CourseCreateSchema, CourseUpdateSchema, CourseResponseSchema
 from .faculty import FacultyBaseSchema, FacultyCreateSchema, FacultyUpdateSchema, FacultyResponseSchema
 from .program import ProgramBaseSchema, ProgramCreateSchema, ProgramUpdateSchema, ProgramResponseSchema, ProgramWithRelationsSchema
@@ -9,7 +9,7 @@ from .teacher import TeacherBaseSchema, TeacherCreateSchema, TeacherUpdateSchema
 from .user import UserBaseSchema, UserCreateSchema, UserUpdateSchema, UserResponseSchema, UserWithRelationsSchema
 
 __all__ = [
-    "CohortBaseSchema", "CohortCreateSchema", "CohortUpdateSchema", "CohortResponseSchema", "CohortWithRelationsSchema", "EducationPlanSchema", "EducationPlanUpdateSchema",
+    "CohortBaseSchema", "CohortCreateSchema", "CohortUpdateSchema", "CohortResponseSchema", "CohortWithRelationsSchema", "EducationPlanSchema",
     "CohortStudentsResponseSchema", "CohortStudentUpdateSchema",
     "CourseBaseSchema", "CourseCreateSchema", "CourseUpdateSchema", "CourseResponseSchema",
     "FacultyBaseSchema", "FacultyCreateSchema", "FacultyUpdateSchema", "FacultyResponseSchema",

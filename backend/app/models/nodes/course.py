@@ -81,17 +81,47 @@ class Course(BaseNode):
         from .cohort import Cohort
         from .specialization import Specialization
         from .tag import Tag
+        from .student import Student
 
         await cls._check_relationship_before_creation(data, 'cohort', Cohort)
         await cls._check_relationship_before_creation(data, 'specialization', Specialization)
+
+        specialization = data.get('specialization_obj')
+        cohort = data.get('cohort_obj')
+        if specialization:
+            if cohort.cohort_id != specialization.cohort.cohort_id:
+                del data['specialization_obj']
+                specialization = None
+
         await cls._check_relationship_before_creation(data, "prerequisites", cls)
         await cls._check_relationship_before_creation(data, "tags", Tag)
+
+        if data.get('is_elective') is False or data.get('is_elective') is None:
+            data['elective_students_ids'] = None
+        await cls._check_relationship_before_creation(data, "elective_students", Student)
+
+        course_cohort_id = cohort.cohort_id
+        course_specialization_id = specialization.specialization_id if specialization else None
+        elective_students = data.get('elective_students_obj') or []
+        correct_students = []
+
+        for student in elective_students:
+            await student.load_relations('cohort', 'specialization')
+            if student.cohort.cohort_id != course_cohort_id:
+                continue
+            student_specialization_id = student.specialization.specialization_id if student.specialization else None
+            if course_specialization_id and student_specialization_id != course_specialization_id:
+                continue
+            correct_students.append(student)
+
+        data['elective_students_obj'] = correct_students
 
     async def _after_creation(self, data: DictStrAny) -> None:
         await self._update_relationship(data, 'cohort')
         await self._update_relationship(data, 'specialization')
         await self._update_relationship(data, "prerequisites")
         await self._update_relationship(data, "tags")
+        await self._update_relationship(data, 'elective_students')
 
     async def _before_update(self, data: DictStrAny) -> None:
         from .specialization import Specialization

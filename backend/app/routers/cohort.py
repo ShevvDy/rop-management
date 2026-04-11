@@ -4,7 +4,7 @@ from typing import List
 from ..exceptions import BadRequestException
 from ..models import Cohort, Course, Student, Specialization
 from ..schemas import CohortCreateSchema, CohortUpdateSchema, CohortResponseSchema, CohortWithRelationsSchema, \
-    EducationPlanSchema, CohortStudentsResponseSchema, CohortStudentUpdateSchema, EducationPlanUpdateSchema
+    EducationPlanSchema, CohortStudentsResponseSchema, CohortStudentUpdateSchema
 
 router = APIRouter(prefix="/cohort", tags=["cohort"])
 
@@ -49,7 +49,7 @@ async def get_cohort_education_plan_graph(cohort_id: int):
 
 
 @router.put("/{cohort_id}/graph", response_model=EducationPlanSchema)
-async def update_cohort_education_plan_graph(cohort_id: int, education_plan: EducationPlanUpdateSchema):
+async def update_cohort_education_plan_graph(cohort_id: int, education_plan: EducationPlanSchema):
     """Обновить граф учебного плана потока по учебному году"""
     cohort = await Cohort.get_by_id(cohort_id, relations=['courses.prerequisites', 'program'])
     education_plan = education_plan.model_dump(exclude_unset=True)
