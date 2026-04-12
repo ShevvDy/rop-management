@@ -9,3 +9,4 @@ python-dotenv==1.2.1
 redis==5.3.1
 requests==2.32.5
 uvicorn==0.38.0
+jwcrypto==1.5.6

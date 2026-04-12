@@ -4,10 +4,12 @@ from neomodel import (
     DateTimeProperty,
     AsyncRelationshipFrom,
     AsyncRelationshipTo,
-    AsyncZeroOrMore, BooleanProperty,
+    AsyncZeroOrMore,
+    BooleanProperty,
 )
 
 from ..base_node import BaseNode
+from ...exceptions import BadRequestException
 from ...utils.types import DictStrAny
 
 
@@ -30,6 +32,12 @@ class User(BaseNode):
     updated_at = DateTimeProperty(default=BaseNode.now)
 
     # Связи (входящие) - история записей студента/преподавателя
+    oauth_provider_rel = AsyncRelationshipFrom(
+        ".oauth_provider.OAuthProvider",
+        "PROVIDER_OF",
+        AsyncZeroOrMore,
+    )
+
     student_data_rel = AsyncRelationshipFrom(
         ".student.Student",
         "STUDENT_RECORD_OF",
@@ -67,11 +75,23 @@ class User(BaseNode):
 
     @classmethod
     async def _before_creation(cls, data: DictStrAny) -> None:
+        from .oauth_provider import OAuthProvider
         from .tag import Tag
+
+        provider = data.get('provider')
+        provider_user_id = data.get('provider_user_id')
+        if provider is not None and provider_user_id is not None:
+            oauth_provider = await OAuthProvider.get_oauth_provider_by_user_provider(provider, provider_user_id)
+            if oauth_provider is not None:
+                raise BadRequestException("Пользователь с таким провайдером и ID уже существует")
+            oauth_provider = await OAuthProvider.create_node({'provider': provider, 'provider_user_id': provider_user_id})
+            data['oauth_provider_obj'] = [oauth_provider]
+
         await cls._check_relationship_before_creation(data, 'tags', Tag)
 
     async def _after_creation(self, data: DictStrAny) -> None:
         await self._update_relationship(data, 'tags')
+        await self._update_relationship(data, 'oauth_provider')
 
     async def _before_update(self, data: DictStrAny) -> None:
         from .tag import Tag

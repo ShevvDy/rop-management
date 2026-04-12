@@ -41,3 +41,8 @@ class EducationLang(ChoiceEnum):
 class StudentStatus(ChoiceEnum):
     """Статус студента"""
     __slots__ = ("send_down", "academic_leave")
+
+
+class OAuthProviderType(ChoiceEnum):
+    """Тип провайдера OAuth"""
+    __slots__ = ("yandex",)
