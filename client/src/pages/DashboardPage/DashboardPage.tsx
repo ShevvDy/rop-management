@@ -1,5 +1,5 @@
 import React, { useState, useCallback, useMemo, useRef, useEffect, createContext, useContext } from 'react';
-import { message } from 'antd';
+import { useToast } from '../../components/Toast';
 import { getPrograms, getProgram, createProgram as apiCreateProgram } from '../../api/programs';
 import { createCohort as apiCreateCohort, getCohortGraph, updateCohortGraph } from '../../api/cohorts';
 import { updateCourse } from '../../api/courses';
@@ -40,6 +40,35 @@ const VKR_NODE_ID = 'vkr';
 
 const isVkrNode = (n: Node): boolean =>
     n.id === VKR_NODE_ID || (n.data as CourseNodeData)?.code === 'ВКР';
+
+/**
+ * Проверяет, существует ли путь from → ... → to длиной ≥ 2 в графе.
+ * Опционально игнорирует одно ребро (нужно при добавлении нового — само добавляемое не учитываем).
+ */
+const hasIndirectPath = (
+    edges: Edge[],
+    from: string,
+    to: string,
+    ignoreEdge?: { source: string; target: string },
+): boolean => {
+    const adj = new Map<string, string[]>();
+    edges.forEach((e) => {
+        if (ignoreEdge && e.source === ignoreEdge.source && e.target === ignoreEdge.target) return;
+        if (!adj.has(e.source)) adj.set(e.source, []);
+        adj.get(e.source)!.push(e.target);
+    });
+    const visited = new Set<string>();
+    const stack: { node: string; depth: number }[] = [{ node: from, depth: 0 }];
+    while (stack.length) {
+        const { node, depth } = stack.pop()!;
+        if (visited.has(node)) continue;
+        visited.add(node);
+        if (node === to && depth >= 2) return true;
+        const next = adj.get(node) || [];
+        for (const n of next) stack.push({ node: n, depth: depth + 1 });
+    }
+    return false;
+};
 
 const findInvalidNodes = (nodes: Node[], edges: Edge[]): string[] => {
     if (nodes.length <= 1) return [];
@@ -267,6 +296,7 @@ const apiGraphToFlowData = (graph: EducationPlanGraph): YearGraphData => {
             credits: c.credits,
             type: c.is_elective ? 'elective' as const : 'required' as const,
             semester: `${c.semester_number} семестр`,
+            elective_students_ids: c.elective_students_ids,
         },
     }));
 
@@ -289,9 +319,10 @@ const apiGraphToFlowData = (graph: EducationPlanGraph): YearGraphData => {
             type: c.is_elective ? 'elective' : 'required',
             credits: c.credits,
             summary: '',
-            students: { avatars: [], total: 0 },
+            students: { avatars: [], total: c.elective_students_ids?.length ?? 0 },
             teachers: [],
             materials: [],
+            elective_students_ids: c.elective_students_ids,
         };
     });
 
@@ -321,6 +352,7 @@ const flowDataToApiPayload = (nodes: Node<CourseNodeData>[], edges: Edge[]) => {
             form: 'offline',
             is_elective: n.data.type === 'elective',
             is_last: isVkrNode(n),
+            elective_students_ids: n.data.elective_students_ids,
         };
     });
 
@@ -519,6 +551,7 @@ interface GraphPanelProps {
 }
 
 const GraphPanelInner: React.FC<GraphPanelProps> = ({ label, labelColor, initNodes, initEdges, details, onSelectCourse, onDetailsChange, onGraphSaved, cohortId, compact, readOnly = false, diff = null, durationYears }) => {
+    const toast = useToast();
     const semestersCount = Math.max(1, (durationYears ?? 4) * 2);
     const [nodes, setNodes, onNodesChange] = useNodesState(initNodes);
     const [edges, setEdges, onEdgesChange] = useEdgesState(initEdges);
@@ -596,18 +629,38 @@ const GraphPanelInner: React.FC<GraphPanelProps> = ({ label, labelColor, initNod
     }, [details, onSelectCourse]);
 
     const onConnect = useCallback((c: Connection) => {
+        if (!c.source || !c.target || c.source === c.target) return;
+        if (hasIndirectPath(edges, c.source, c.target)) {
+            toast.warning('Уже есть транзитивная связь между этими дисциплинами');
+            return;
+        }
+        if (hasIndirectPath(edges, c.target, c.source)) {
+            toast.warning('Связь создаст цикл в графе');
+            return;
+        }
         setEdges((eds) => addEdge({ ...c, type: 'deletable', style: edgeStyle }, eds));
         markDirty();
-    }, [setEdges, markDirty]);
+    }, [edges, setEdges, markDirty]);
 
     /* ── Edge reconnect (drag handle to detach/reattach) ── */
     const edgeReconnectSuccessful = useRef(true);
     const onReconnectStart = useCallback(() => { edgeReconnectSuccessful.current = false; }, []);
     const onReconnect = useCallback((oldEdge: Edge, newConnection: Connection) => {
         edgeReconnectSuccessful.current = true;
+        if (!newConnection.source || !newConnection.target || newConnection.source === newConnection.target) return;
+        /* Игнорируем старое ребро при проверке — иначе сами себе помешаем переподключить */
+        const ignore = { source: oldEdge.source, target: oldEdge.target };
+        if (hasIndirectPath(edges, newConnection.source, newConnection.target, ignore)) {
+            toast.warning('Уже есть транзитивная связь между этими дисциплинами');
+            return;
+        }
+        if (hasIndirectPath(edges, newConnection.target, newConnection.source, ignore)) {
+            toast.warning('Связь создаст цикл в графе');
+            return;
+        }
         setEdges((eds) => reconnectEdge(oldEdge, newConnection, eds));
         markDirty();
-    }, [setEdges, markDirty]);
+    }, [edges, setEdges, markDirty]);
     const onReconnectEnd = useCallback((_: MouseEvent | TouchEvent, edge: Edge) => {
         if (!edgeReconnectSuccessful.current) {
             setEdges((eds) => eds.filter((e) => e.id !== edge.id));
@@ -641,7 +694,7 @@ const GraphPanelInner: React.FC<GraphPanelProps> = ({ label, labelColor, initNod
     }, [menu]);
 
     const handleAddNode = useCallback(() => {
-        if (!form.name.trim()) return;
+        if (!form.name.trim() || !form.code.trim()) return;
         const id = `course-${Date.now()}`;
         const semesterLabel = `${form.semester} семестр`;
         const data: CourseNodeData = { code: form.code.trim(), name: form.name.trim(), credits: form.credits, type: form.type, semester: semesterLabel };
@@ -660,13 +713,22 @@ const GraphPanelInner: React.FC<GraphPanelProps> = ({ label, labelColor, initNod
         const { nodes: ln, edges: le } = getLayoutedElements(nodes, edges, direction);
         setNodes([...ln]);
         setEdges([...le]);
-        markDirty();
+        /* Горизонтальный вид — чисто визуал, dirty-флаг не выставляем */
+        if (direction === 'TB') markDirty();
         requestAnimationFrame(() => fitView({ padding: 0.3 }));
     }, [nodes, edges, setNodes, setEdges, markDirty, fitView]);
 
     /* ── Save handler ── */
     const handleSaveGraph = useCallback(async () => {
         if (!cohortId) return;
+        /* Все новые ноды (без числового course_id) обязаны иметь непустой код,
+           иначе бэкенд не сможет разрезолвить ссылки в рёбрах. */
+        const newNodesWithoutCode = nodes.filter((n) => !/^\d+$/.test(n.id) && !n.data?.code?.trim());
+        if (newNodesWithoutCode.length > 0) {
+            const names = newNodesWithoutCode.map((n) => n.data?.name || n.id).join(', ');
+            toast.error(`У новых дисциплин не указан код: ${names}. Заполните код перед сохранением.`);
+            return;
+        }
         setIsSaving(true);
         try {
             const payload = flowDataToApiPayload(nodes, edges);
@@ -677,10 +739,10 @@ const GraphPanelInner: React.FC<GraphPanelProps> = ({ label, labelColor, initNod
             onDetailsChange(newData.details);
             onGraphSaved?.(newData);
             setIsDirty(false);
-            message.success('Граф успешно сохранён');
+            toast.success('Граф успешно сохранён');
         } catch (err: unknown) {
             const msg = err instanceof Error ? err.message : 'Ошибка сохранения графа';
-            message.error(msg);
+            toast.error(msg);
         } finally {
             setIsSaving(false);
         }
@@ -721,7 +783,15 @@ const GraphPanelInner: React.FC<GraphPanelProps> = ({ label, labelColor, initNod
                 onPaneContextMenu={readOnly ? undefined : onPaneContextMenu}
                 nodeTypes={nodeTypes}
                 edgeTypes={edgeTypes}
-                isValidConnection={(c) => c.source !== c.target}
+                isValidConnection={(c) => {
+                    if (!c.source || !c.target || c.source === c.target) return false;
+                    /* Запрещаем создание прямой связи source→target, если уже есть путь
+                       source → ... → target длиной ≥ 2 (избегаем избыточных рёбер). */
+                    if (hasIndirectPath(edges, c.source, c.target)) return false;
+                    /* И симметрично — нельзя создавать обратное ребро, иначе получится цикл. */
+                    if (hasIndirectPath(edges, c.target, c.source)) return false;
+                    return true;
+                }}
                 fitView
                 fitViewOptions={{ padding: 0.3 }}
                 proOptions={{ hideAttribution: true }}
@@ -778,7 +848,7 @@ const GraphPanelInner: React.FC<GraphPanelProps> = ({ label, labelColor, initNod
                         <div className={styles.dialogBody}>
                             <label className={styles.dialogLabel}>НАЗВАНИЕ *</label>
                             <input className={styles.dialogInput} placeholder="Например: Операционные системы" value={form.name} onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))} autoFocus />
-                            <label className={styles.dialogLabel}>КОД КУРСА</label>
+                            <label className={styles.dialogLabel}>КОД КУРСА *</label>
                             <input className={styles.dialogInput} placeholder="Например: CS-303" value={form.code} onChange={(e) => setForm((f) => ({ ...f, code: e.target.value }))} />
                             <div className={styles.dialogRow}>
                                 <div className={styles.dialogField}>
@@ -802,7 +872,7 @@ const GraphPanelInner: React.FC<GraphPanelProps> = ({ label, labelColor, initNod
                         </div>
                         <div className={styles.dialogFooter}>
                             <button className={styles.dialogBtnCancel} onClick={() => setDialog(false)}>Отмена</button>
-                            <button className={styles.dialogBtnSubmit} onClick={handleAddNode} disabled={!form.name.trim()}>Добавить</button>
+                            <button className={styles.dialogBtnSubmit} onClick={handleAddNode} disabled={!form.name.trim() || !form.code.trim()}>Добавить</button>
                         </div>
                     </div>
                 </div>
@@ -824,6 +894,7 @@ const GraphPanel: React.FC<GraphPanelProps> = (props) => (
 interface CreateFacultyModalProps { onClose: () => void; onCreate: (f: Faculty) => void; existingCount: number; }
 
 const CreateFacultyModal: React.FC<CreateFacultyModalProps> = ({ onClose, onCreate, existingCount }) => {
+    const toast = useToast();
     const [name, setName] = useState('');
     const [shortName, setShortName] = useState('');
     const [submitting, setSubmitting] = useState(false);
@@ -846,7 +917,7 @@ const CreateFacultyModal: React.FC<CreateFacultyModalProps> = ({ onClose, onCrea
             onCreate(ui);
         } catch (err: unknown) {
             const msg = err instanceof Error ? err.message : 'Ошибка создания факультета';
-            message.error(msg);
+            toast.error(msg);
         } finally {
             setSubmitting(false);
         }
@@ -893,6 +964,7 @@ const DEGREE_TO_DURATION: Record<string, number> = {
 };
 
 const CreateProgramModal: React.FC<CreateProgramModalProps> = ({ onClose, onCreate, existingCount, facultyId }) => {
+    const toast = useToast();
     const [name, setName] = useState('');
     const [degree, setDegree] = useState('Бакалавриат');
     const [submitting, setSubmitting] = useState(false);
@@ -923,7 +995,7 @@ const CreateProgramModal: React.FC<CreateProgramModalProps> = ({ onClose, onCrea
             onCreate(ui);
         } catch (err: unknown) {
             const msg = err instanceof Error ? err.message : 'Ошибка создания программы';
-            message.error(msg);
+            toast.error(msg);
         } finally {
             setSubmitting(false);
         }
@@ -972,6 +1044,7 @@ const CreateProgramModal: React.FC<CreateProgramModalProps> = ({ onClose, onCrea
 interface CreateYearModalProps { onClose: () => void; onCreate: (y: YearPlan) => void; existingYears: number[]; programId: number; }
 
 const CreateYearModal: React.FC<CreateYearModalProps> = ({ onClose, onCreate, existingYears, programId }) => {
+    const toast = useToast();
     const currentYear = new Date().getFullYear();
     const availableYears = Array.from({ length: 6 }, (_, i) => currentYear + 2 - i).filter((y) => !existingYears.includes(y));
     const [year, setYear] = useState(availableYears[0] || currentYear);
@@ -1001,7 +1074,7 @@ const CreateYearModal: React.FC<CreateYearModalProps> = ({ onClose, onCreate, ex
             });
         } catch (err: unknown) {
             const msg = err instanceof Error ? err.message : 'Ошибка создания когорты';
-            message.error(msg);
+            toast.error(msg);
         } finally {
             setSubmitting(false);
         }
@@ -1042,6 +1115,7 @@ const CreateYearModal: React.FC<CreateYearModalProps> = ({ onClose, onCreate, ex
 type View = 'faculties' | 'programs' | 'years' | 'graph';
 
 const DashboardPage: React.FC = () => {
+    const toast = useToast();
     const [view, setView] = useState<View>('faculties');
     const [allFaculties, setAllFaculties] = useState<Faculty[]>([]);
     const [allPrograms, setAllPrograms] = useState<Record<string, Program[]>>({});
@@ -1069,7 +1143,7 @@ const DashboardPage: React.FC = () => {
                 setAllFaculties(data.map((f, i) => mapFacultyToUI(f, i)));
             })
             .catch(() => {
-                if (!cancelled) message.error('Не удалось загрузить факультеты');
+                if (!cancelled) toast.error('Не удалось загрузить факультеты');
             })
             .finally(() => { if (!cancelled) setLoading(false); });
         return () => { cancelled = true; };
@@ -1091,7 +1165,7 @@ const DashboardPage: React.FC = () => {
                 const programs = filtered.map((p, i) => mapProgramToUI(p, i));
                 setAllPrograms((prev) => ({ ...prev, [f.id]: programs }));
             })
-            .catch(() => message.error('Не удалось загрузить программы'))
+            .catch(() => toast.error('Не удалось загрузить программы'))
             .finally(() => setLoadingPrograms(false));
     };
 
@@ -1118,7 +1192,7 @@ const DashboardPage: React.FC = () => {
                     }));
                 }
             })
-            .catch(() => message.error('Не удалось загрузить годы набора'))
+            .catch(() => toast.error('Не удалось загрузить годы набора'))
             .finally(() => setLoadingYears(false));
     };
 
@@ -1151,7 +1225,7 @@ const DashboardPage: React.FC = () => {
                 });
             }
         } catch {
-            message.error('Не удалось загрузить граф учебного плана');
+            toast.error('Не удалось загрузить граф учебного плана');
         } finally {
             setLoadingGraph(false);
         }
@@ -1214,10 +1288,10 @@ const DashboardPage: React.FC = () => {
                 is_elective: updated.type === 'elective',
             });
             applyCourseUpdate(updated);
-            message.success('Дисциплина обновлена');
+            toast.success('Дисциплина обновлена');
         } catch (err: unknown) {
             const msg = err instanceof Error ? err.message : 'Ошибка сохранения дисциплины';
-            message.error(msg);
+            toast.error(msg);
         }
     }, [applyCourseUpdate]);
 

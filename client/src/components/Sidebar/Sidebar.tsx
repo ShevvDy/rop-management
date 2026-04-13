@@ -6,6 +6,7 @@ import styles from './Sidebar.module.css';
 const navItems = [
     { path: '/dashboard', label: 'Дашборд', icon: 'dashboard' },
     { path: '/contacts', label: 'Справочник контактов', icon: 'contacts' },
+    { path: '/students', label: 'Журнал студентов', icon: 'students' },
     { path: '/data-upload', label: 'Загрузка данных', icon: 'upload' },
     { path: '/roles', label: 'Управление ролями', icon: 'roles' },
 ];
@@ -23,6 +24,14 @@ const iconMap: Record<string, React.ReactNode> = {
         <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
             <circle cx="10" cy="7" r="3.5" stroke="currentColor" strokeWidth="1.5" />
             <path d="M3.5 17.5c0-3.59 2.91-6.5 6.5-6.5s6.5 2.91 6.5 6.5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+        </svg>
+    ),
+    students: (
+        <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
+            <path d="M4 17v-1a4 4 0 014-4h0" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+            <circle cx="8" cy="7" r="3" stroke="currentColor" strokeWidth="1.5" />
+            <path d="M12 17v-1a4 4 0 014-4h0" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+            <circle cx="16" cy="7" r="3" stroke="currentColor" strokeWidth="1.5" />
         </svg>
     ),
     upload: (

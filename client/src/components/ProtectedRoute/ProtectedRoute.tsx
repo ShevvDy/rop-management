@@ -1,10 +1,10 @@
 import React from 'react';
-import { Outlet } from 'react-router-dom';
+import { Navigate, Outlet } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
 import styles from '../../pages/AuthCallbackPage/AuthCallbackPage.module.css';
 
 const ProtectedRoute: React.FC = () => {
-  const { loading } = useAuth();
+  const { isAuthenticated, loading } = useAuth();
 
   if (loading) {
     return (
@@ -19,9 +19,7 @@ const ProtectedRoute: React.FC = () => {
     );
   }
 
-  // TODO: убрать когда бэкенд будет готов
-  return <Outlet />;
-  // return isAuthenticated ? <Outlet /> : <Navigate to="/login" replace />;
+  return isAuthenticated ? <Outlet /> : <Navigate to="/login" replace />;
 };
 
 export default ProtectedRoute;

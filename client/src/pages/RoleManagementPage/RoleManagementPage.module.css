@@ -395,6 +395,189 @@
   color: var(--text-muted);
 }
 
+/* ── Role Modal ── */
+.modalBackdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.4);
+  z-index: 1000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  animation: fadeInBackdrop 0.2s ease;
+}
+
+@keyframes fadeInBackdrop {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+.modal {
+  background: #fff;
+  border-radius: 12px;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.2);
+  width: 440px;
+  max-width: 92vw;
+  animation: modalSlide 0.25s ease;
+}
+
+@keyframes modalSlide {
+  from { opacity: 0; transform: translateY(-20px) scale(0.97); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+.modalHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 20px 24px 0;
+}
+
+.modalTitle {
+  font-size: 17px;
+  font-weight: 600;
+  color: var(--text);
+}
+
+.modalCloseBtn {
+  width: 32px;
+  height: 32px;
+  border: none;
+  background: none;
+  color: var(--text-muted);
+  cursor: pointer;
+  border-radius: 6px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.15s;
+}
+
+.modalCloseBtn:hover { background: #F1F5F9; color: var(--text); }
+
+.modalBody { padding: 20px 24px; }
+
+.modalUserInfo {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  margin-bottom: 16px;
+}
+
+.modalAvatar {
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 15px;
+  font-weight: 700;
+  color: #fff;
+  flex-shrink: 0;
+}
+
+.modalUserName {
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--text);
+}
+
+.modalUserEmail {
+  font-size: 13px;
+  color: var(--text-muted);
+}
+
+.modalDivider {
+  height: 1px;
+  background: var(--border);
+  margin-bottom: 16px;
+}
+
+.modalLabel {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-muted);
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  margin-bottom: 10px;
+}
+
+.roleList {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.roleOption {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 14px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: #fff;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.15s;
+  font-family: inherit;
+}
+
+.roleOption:hover { border-color: var(--primary); }
+
+.roleOptionActive { font-weight: 600; }
+
+.roleCheck {
+  width: 20px;
+  height: 20px;
+  border: 2px solid var(--border);
+  border-radius: 5px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  transition: all 0.15s;
+}
+
+.modalFooter {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+  padding: 0 24px 20px;
+}
+
+.modalBtnCancel {
+  padding: 9px 18px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: #fff;
+  color: var(--text-secondary);
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.15s;
+  font-family: inherit;
+}
+
+.modalBtnCancel:hover { border-color: var(--text-muted); color: var(--text); }
+
+.modalBtnSave {
+  padding: 9px 20px;
+  border: none;
+  border-radius: 8px;
+  background: var(--primary);
+  color: #fff;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.15s;
+  font-family: inherit;
+}
+
+.modalBtnSave:hover { background: var(--primary-hover); }
+.modalBtnSave:disabled { opacity: 0.5; cursor: not-allowed; }
+
 /* ===== Responsive ===== */
 @media (max-width: 1100px) {
   .listHeader,

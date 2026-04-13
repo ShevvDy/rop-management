@@ -9,6 +9,7 @@ class UserBaseSchema(BaseModel):
     patronymic: Optional[str] = Field(None, description="Отчество пользователя")
     email: Optional[EmailStr] = Field(None, description="Email пользователя")
     phone: Optional[str] = Field(None, description="Телефон пользователя")
+    telegram: Optional[str] = Field(None, description="Telegram пользователя")
     isu_id: Optional[int] = Field(None, description="ID пользователя в ИСУ")
     avatar: Optional[str] = Field(None, description="URL аватара пользователя")
 
@@ -26,6 +27,7 @@ class UserUpdateSchema(BaseModel):
     patronymic: Optional[str] = Field(None, description="Отчество пользователя")
     email: Optional[EmailStr] = Field(None, description="Email пользователя")
     phone: Optional[str] = Field(None, description="Телефон пользователя")
+    telegram: Optional[str] = Field(None, description="Telegram пользователя")
     isu_id: Optional[int] = Field(None, description="ID пользователя в ИСУ")
     avatar: Optional[str] = Field(None, description="URL аватара пользователя")
     tags_ids: list[int] = Field([], description="Теги пользователя")

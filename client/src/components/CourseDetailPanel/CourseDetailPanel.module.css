@@ -237,6 +237,29 @@
   justify-content: center;
 }
 
+/* Elective students info */
+.electiveStudentsInfo {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 10px 12px;
+  background: #FFF7ED;
+  border-radius: 8px;
+  border: 1px solid #FED7AA;
+}
+
+.electiveStudentsBadge {
+  font-size: 13px;
+  font-weight: 600;
+  color: #D97706;
+}
+
+.electiveStudentsHint {
+  font-size: 12px;
+  color: #92400E;
+  opacity: 0.8;
+}
+
 /* Teachers */
 .teacherRow {
   display: flex;

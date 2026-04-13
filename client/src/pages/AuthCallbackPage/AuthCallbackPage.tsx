@@ -1,7 +1,7 @@
 import React, { useEffect, useRef } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import axios from 'axios';
-import { useAuth, type User, type OAuthProvider } from '../../contexts/AuthContext';
+import { useAuth, type OAuthProvider } from '../../contexts/AuthContext';
 import styles from './AuthCallbackPage.module.css';
 
 const AuthCallbackPage: React.FC = () => {
@@ -15,7 +15,6 @@ const AuthCallbackPage: React.FC = () => {
     handled.current = true;
 
     const code = searchParams.get('code');
-    const state = searchParams.get('state');
     const error = searchParams.get('error');
 
     if (error) {
@@ -23,33 +22,36 @@ const AuthCallbackPage: React.FC = () => {
       return;
     }
 
-    if (!code || !state) {
+    const codeVerifier = sessionStorage.getItem('pkce_code_verifier');
+    const provider = (searchParams.get('provider') ?? sessionStorage.getItem('oauth_provider') ?? 'yandex') as OAuthProvider;
+
+    if (!code || !codeVerifier) {
       navigate('/login?error=invalid_callback', { replace: true });
       return;
     }
 
-    let provider: OAuthProvider;
-    try {
-      const parsed = JSON.parse(atob(state));
-      provider = parsed.provider;
-    } catch {
-      navigate('/login?error=invalid_state', { replace: true });
-      return;
-    }
-
-    const redirectUri = `${window.location.origin}/auth/callback`;
-
     axios
-      .post<{ user: User; token: string }>('/api/auth/callback', {
+      .post(`/api/v1/auth/token/${provider}`, {
         code,
-        provider,
-        redirect_uri: redirectUri,
+        code_verifier: codeVerifier,
       })
       .then(({ data }) => {
-        setAuth(data.user, data.token);
+        sessionStorage.removeItem('pkce_code_verifier');
+        sessionStorage.removeItem('oauth_provider');
+
+        const user = { ...data.user, provider };
+        const token = data.access_token;
+
+        if (data.refresh_token) {
+          localStorage.setItem('refresh_token', data.refresh_token);
+        }
+
+        setAuth(user, token);
         navigate('/dashboard', { replace: true });
       })
       .catch(() => {
+        sessionStorage.removeItem('pkce_code_verifier');
+        sessionStorage.removeItem('oauth_provider');
         navigate('/login?error=auth_failed', { replace: true });
       });
   }, []);

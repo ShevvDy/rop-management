@@ -6,12 +6,13 @@ import { Position, type Node, type Edge } from '@xyflow/react';
  * https://reactflow.dev/examples/layout/dagre
  */
 
-export const NODE_WIDTH = 230;
-export const NODE_HEIGHT = 130;
+/* Должно совпадать с реальными размерами .node в CourseNode.module.css */
+export const NODE_WIDTH = 220;
+export const NODE_HEIGHT = 115;
 
 export type LayoutDirection = 'TB' | 'LR';
 
-export function getLayoutedElements<TData>(
+export function getLayoutedElements<TData extends Record<string, unknown>>(
     nodes: Node<TData>[],
     edges: Edge[],
     direction: LayoutDirection = 'TB',
@@ -22,7 +23,14 @@ export function getLayoutedElements<TData>(
     dagreGraph.setDefaultEdgeLabel(() => ({}));
 
     const isHorizontal = direction === 'LR';
-    dagreGraph.setGraph({ rankdir: direction, nodesep: 60, ranksep: 90 });
+    dagreGraph.setGraph({
+        rankdir: direction,
+        nodesep: 50,
+        ranksep: 70,
+        marginx: 20,
+        marginy: 20,
+        align: 'UL',
+    });
 
     nodes.forEach((node) => {
         dagreGraph.setNode(node.id, { width: NODE_WIDTH, height: NODE_HEIGHT });

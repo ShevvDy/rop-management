@@ -1,38 +1,5 @@
-/**
- * ============================================================
- * ВАЖНО: ЧТО НУЖНО СДЕЛАТЬ ДЛЯ РАБОТЫ АВТОРИЗАЦИИ
- * ============================================================
- *
- * 1. ЗАРЕГИСТРИРОВАТЬ ПРИЛОЖЕНИЕ У ПРОВАЙДЕРОВ
- *    - Google: https://console.cloud.google.com → OAuth 2.0 Client IDs
- *      redirect_uri = http://localhost:5173/auth/callback  (dev)
- *                   = https://your-domain.com/auth/callback (prod)
- *    - Яндекс: https://oauth.yandex.ru/client/new
- *      redirect_uri = то же самое
- *    - ИТМО ID: обратиться в IT-отдел ИТМО, запросить client_id
- *      (провайдер Keycloak: https://id.itmo.ru/auth/realms/itmo/...)
- *
- * 2. СОЗДАТЬ ФАЙЛ .env В КОРНЕ КЛИЕНТА (client/.env)
- *    VITE_GOOGLE_CLIENT_ID=xxxx.apps.googleusercontent.com
- *    VITE_YANDEX_CLIENT_ID=xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
- *    VITE_ITMO_CLIENT_ID=your-itmo-client-id
- *
- * 3. РЕАЛИЗОВАТЬ ЭНДПОИНТ НА БЭКЕНДЕ:
- *    POST /api/auth/callback
- *    Body: { code: string, provider: 'google'|'yandex'|'itmo', redirect_uri: string }
- *    Response: { user: { id, name, email, avatar?, role: 'guest', provider }, token: string }
- *    Логика:
- *      - Обменять code на access_token у провайдера
- *      - Получить профиль пользователя (userinfo endpoint)
- *      - Найти или создать пользователя в БД (role = 'guest' при первом входе)
- *      - Вернуть JWT токен + данные пользователя
- *
- * 4. ДОБАВИТЬ redirect_uri В WHITELIST У КАЖДОГО ПРОВАЙДЕРА
- *    (обычно делается в настройках приложения на стороне провайдера)
- * ============================================================
- */
-
-import React from 'react';
+import React, { useState } from 'react';
+import axios from 'axios';
 import yandexIcon from '../../icons/yandex.svg';
 import googleIcon from '../../icons/google.svg';
 import itmoIcon from '../../icons/itmo.svg';
@@ -40,37 +7,22 @@ import styles from './LoginPage.module.css';
 
 type OAuthProvider = 'yandex' | 'google' | 'itmo';
 
-const OAUTH_CONFIG: Record<OAuthProvider, { authUrl: string; clientId: string; scope?: string }> = {
-  yandex: {
-    authUrl: 'https://oauth.yandex.ru/authorize',
-    clientId: import.meta.env.VITE_YANDEX_CLIENT_ID ?? 'YANDEX_CLIENT_ID',
-  },
-  google: {
-    authUrl: 'https://accounts.google.com/o/oauth2/v2/auth',
-    clientId: import.meta.env.VITE_GOOGLE_CLIENT_ID ?? 'GOOGLE_CLIENT_ID',
-    scope: 'openid email profile',
-  },
-  itmo: {
-    authUrl: 'https://id.itmo.ru/auth/realms/itmo/protocol/openid-connect/auth',
-    clientId: import.meta.env.VITE_ITMO_CLIENT_ID ?? 'ITMO_CLIENT_ID',
-    scope: 'openid email profile',
-  },
-};
+const redirectToOAuth = async (provider: OAuthProvider) => {
+  if (provider === 'yandex') {
+    const { data } = await axios.get<{
+      auth_url: string;
+      code_verifier: string;
+      code_challenge: string;
+    }>('/auth/login');
 
-const redirectToOAuth = (provider: OAuthProvider) => {
-  const redirectUri = `${window.location.origin}/auth/callback`;
-  const state = btoa(JSON.stringify({ provider }));
-  const cfg = OAUTH_CONFIG[provider];
+    sessionStorage.setItem('pkce_code_verifier', data.code_verifier);
+    sessionStorage.setItem('oauth_provider', provider);
+    window.location.href = data.auth_url;
+    return;
+  }
 
-  const params = new URLSearchParams({
-    client_id: cfg.clientId,
-    redirect_uri: redirectUri,
-    response_type: 'code',
-    state,
-    ...(cfg.scope ? { scope: cfg.scope } : {}),
-  });
-
-  window.location.href = `${cfg.authUrl}?${params}`;
+  // Google / ИТМО — пока не поддержаны на бэке
+  console.warn(`Provider "${provider}" is not yet supported`);
 };
 
 const providers: { key: OAuthProvider; label: string; icon: string; className: string }[] = [
@@ -80,6 +32,17 @@ const providers: { key: OAuthProvider; label: string; icon: string; className: s
 ];
 
 const LoginPage: React.FC = () => {
+  const [loading, setLoading] = useState(false);
+
+  const handleLogin = async (provider: OAuthProvider) => {
+    setLoading(true);
+    try {
+      await redirectToOAuth(provider);
+    } catch {
+      setLoading(false);
+    }
+  };
+
   return (
     <div className={styles.page}>
       <div className={styles.card}>
@@ -102,7 +65,8 @@ const LoginPage: React.FC = () => {
             <button
               key={key}
               className={`${styles.providerBtn} ${className}`}
-              onClick={() => redirectToOAuth(key)}
+              onClick={() => handleLogin(key)}
+              disabled={loading}
             >
               <span className={styles.providerIcon}>
                 <img src={icon} style={{ borderRadius: '12px' }} width={24} height={24} alt={key} />
@@ -123,7 +87,7 @@ const LoginPage: React.FC = () => {
         </p>
       </div>
 
-      <p className={styles.footer}>UniDataBase &mdash; Единый справочник контактов</p>
+      <p className={styles.footer}>UNITMO &mdash; Единый справочник контактов</p>
     </div>
   );
 };

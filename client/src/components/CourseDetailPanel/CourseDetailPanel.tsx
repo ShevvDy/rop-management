@@ -26,6 +26,7 @@ interface CourseDetail {
     students: { avatars: string[]; total: number };
     teachers: Teacher[];
     materials: Material[];
+    elective_students_ids?: number[];
 }
 
 interface CourseDetailPanelProps {
@@ -880,22 +881,38 @@ const CourseDetailPanel: React.FC<CourseDetailPanelProps> = ({ course, onClose, 
                                 Добавить
                             </button>
                         </div>
-                        <div className={styles.studentsAvatars}>
-                            {course.students.avatars.map((avatar, i) => (
-                                <img
-                                    key={i}
-                                    src={avatar}
-                                    alt="student"
-                                    className={styles.studentAvatar}
-                                    style={{ marginLeft: i > 0 ? -8 : 0, zIndex: course.students.avatars.length - i }}
-                                />
-                            ))}
-                            {course.students.total > course.students.avatars.length && (
-                                <span className={styles.studentsMore} style={{ marginLeft: -8 }}>
-                                    +{course.students.total - course.students.avatars.length}
+                        {course.type === 'elective' && course.elective_students_ids && course.elective_students_ids.length > 0 ? (
+                            <div className={styles.electiveStudentsInfo}>
+                                <span className={styles.electiveStudentsBadge}>
+                                    Записано на курс: {course.elective_students_ids.length}
                                 </span>
-                            )}
-                        </div>
+                                <span className={styles.electiveStudentsHint}>
+                                    ID студентов: {course.elective_students_ids.slice(0, 5).join(', ')}
+                                    {course.elective_students_ids.length > 5 && ` и ещё ${course.elective_students_ids.length - 5}`}
+                                </span>
+                            </div>
+                        ) : course.type === 'elective' ? (
+                            <div className={styles.electiveStudentsInfo}>
+                                <span className={styles.electiveStudentsHint}>Нет записанных студентов</span>
+                            </div>
+                        ) : (
+                            <div className={styles.studentsAvatars}>
+                                {course.students.avatars.map((avatar, i) => (
+                                    <img
+                                        key={i}
+                                        src={avatar}
+                                        alt="student"
+                                        className={styles.studentAvatar}
+                                        style={{ marginLeft: i > 0 ? -8 : 0, zIndex: course.students.avatars.length - i }}
+                                    />
+                                ))}
+                                {course.students.total > course.students.avatars.length && (
+                                    <span className={styles.studentsMore} style={{ marginLeft: -8 }}>
+                                        +{course.students.total - course.students.avatars.length}
+                                    </span>
+                                )}
+                            </div>
+                        )}
                     </div>
 
                     <div className={styles.section}>

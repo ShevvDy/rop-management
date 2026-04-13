@@ -1,4 +1,5 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
+import { useToast } from '../../components/Toast';
 import styles from './RoleManagementPage.module.css';
 
 interface UserRole {
@@ -33,7 +34,15 @@ const roleColors: Record<string, { color: string; bg: string }> = {
     starosta: { color: '#D97706', bg: '#FFFBEB' },
 };
 
-const users: UserRecord[] = [
+const ALL_ROLES = [
+    { key: 'professor', label: 'Профессор', ...roleColors.professor },
+    { key: 'editor', label: 'Редактор', ...roleColors.editor },
+    { key: 'student', label: 'Студент', ...roleColors.student },
+    { key: 'admin', label: 'Администратор', ...roleColors.admin },
+    { key: 'starosta', label: 'Староста', ...roleColors.starosta },
+];
+
+const initialUsers: UserRecord[] = [
     { id: '1', initials: 'СМ', avatarBg: '#FBBF24', name: 'Д-р Сара Миллер', email: 's.miller@univ.edu', roles: [{ label: 'Профессор', ...roleColors.professor }, { label: 'Редактор', ...roleColors.editor }], department: 'Факультет наук', departmentSub: 'Биология, Генетика', status: 'active' },
     { id: '2', initials: 'ДЧ', avatarBg: '#F87171', name: 'Джеймс Чен', email: 'j.chen@student.univ.edu', roles: [{ label: 'Студент', ...roleColors.student }], department: 'Инженерный корпус', departmentSub: 'Компьютерные науки', status: 'active' },
     { id: '3', initials: 'ЕК', avatarBg: '#A78BFA', name: 'Елена Козлова', email: 'e.kozlova@admin.univ.edu', roles: [{ label: 'Администратор', ...roleColors.admin }], department: 'Администрация', departmentSub: 'Управление персоналом', status: 'active' },
@@ -44,9 +53,121 @@ const users: UserRecord[] = [
     { id: '8', initials: 'ИК', avatarBg: '#F472B6', name: 'Иван Кузнецов', email: 'i.kuznetsov@univ.edu', roles: [{ label: 'Профессор', ...roleColors.professor }], department: 'Факультет наук', departmentSub: 'Математика', status: 'inactive' },
 ];
 
+/* ── Role Change Modal ── */
+const RoleModal: React.FC<{
+    open: boolean;
+    user: UserRecord | null;
+    selectedRoles: string[];
+    onToggle: (key: string) => void;
+    onClose: () => void;
+    onSave: () => void;
+}> = ({ open, user, selectedRoles, onToggle, onClose, onSave }) => {
+    useEffect(() => {
+        if (!open) return;
+        const handler = (e: KeyboardEvent) => { if (e.key === 'Escape') onClose(); };
+        document.addEventListener('keydown', handler);
+        return () => document.removeEventListener('keydown', handler);
+    }, [open, onClose]);
+
+    if (!open || !user) return null;
+
+    return (
+        <div className={styles.modalBackdrop} onClick={onClose}>
+            <div className={styles.modal} onClick={(e) => e.stopPropagation()}>
+                <div className={styles.modalHeader}>
+                    <h3 className={styles.modalTitle}>Изменить роль</h3>
+                    <button className={styles.modalCloseBtn} onClick={onClose}>
+                        <svg width="18" height="18" viewBox="0 0 18 18" fill="none">
+                            <path d="M4.5 4.5l9 9M13.5 4.5l-9 9" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" />
+                        </svg>
+                    </button>
+                </div>
+                <div className={styles.modalBody}>
+                    <div className={styles.modalUserInfo}>
+                        <div className={styles.modalAvatar} style={{ background: user.avatarBg }}>
+                            {user.initials}
+                        </div>
+                        <div>
+                            <div className={styles.modalUserName}>{user.name}</div>
+                            <div className={styles.modalUserEmail}>{user.email}</div>
+                        </div>
+                    </div>
+                    <div className={styles.modalDivider} />
+                    <p className={styles.modalLabel}>Роли пользователя</p>
+                    <div className={styles.roleList}>
+                        {ALL_ROLES.map((role) => {
+                            const isActive = selectedRoles.includes(role.key);
+                            return (
+                                <button
+                                    key={role.key}
+                                    className={`${styles.roleOption} ${isActive ? styles.roleOptionActive : ''}`}
+                                    style={isActive ? { borderColor: `${role.color}60`, background: role.bg } : undefined}
+                                    onClick={() => onToggle(role.key)}
+                                >
+                                    <span
+                                        className={styles.roleCheck}
+                                        style={isActive ? { background: role.color, borderColor: role.color } : undefined}
+                                    >
+                                        {isActive && (
+                                            <svg width="10" height="10" viewBox="0 0 10 10" fill="none">
+                                                <path d="M2 5l2.5 2.5L8 3" stroke="#fff" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+                                            </svg>
+                                        )}
+                                    </span>
+                                    <span style={{ color: isActive ? role.color : 'var(--text-secondary)' }}>{role.label}</span>
+                                </button>
+                            );
+                        })}
+                    </div>
+                </div>
+                <div className={styles.modalFooter}>
+                    <button className={styles.modalBtnCancel} onClick={onClose}>Отмена</button>
+                    <button className={styles.modalBtnSave} onClick={onSave} disabled={selectedRoles.length === 0}>
+                        Сохранить
+                    </button>
+                </div>
+            </div>
+        </div>
+    );
+};
+
 const RoleManagementPage: React.FC = () => {
+    const toast = useToast();
     const [searchQuery, setSearchQuery] = useState('');
     const [sortBy, setSortBy] = useState('name-asc');
+    const [users, setUsers] = useState(initialUsers);
+
+    /* ── Modal state ── */
+    const [editUser, setEditUser] = useState<UserRecord | null>(null);
+    const [selectedRoles, setSelectedRoles] = useState<string[]>([]);
+
+    const openModal = (user: UserRecord) => {
+        setEditUser(user);
+        const keys = user.roles.map((r) => {
+            const found = ALL_ROLES.find((ar) => ar.label === r.label);
+            return found?.key ?? '';
+        }).filter(Boolean);
+        setSelectedRoles(keys);
+    };
+
+    const toggleRole = (key: string) => {
+        setSelectedRoles((prev) =>
+            prev.includes(key) ? prev.filter((k) => k !== key) : [...prev, key]
+        );
+    };
+
+    const handleSave = () => {
+        if (!editUser) return;
+        const newRoles: UserRole[] = selectedRoles.map((key) => {
+            const role = ALL_ROLES.find((r) => r.key === key)!;
+            return { label: role.label, color: role.color, bg: role.bg };
+        });
+        setUsers((prev) =>
+            prev.map((u) => u.id === editUser.id ? { ...u, roles: newRoles } : u)
+        );
+        toast.success(`Роли пользователя ${editUser.name} обновлены`);
+        setEditUser(null);
+    };
 
     const filteredUsers = users.filter(
         (u) =>
@@ -158,7 +279,7 @@ const RoleManagementPage: React.FC = () => {
                                 </div>
 
                                 <div className={styles.colAction}>
-                                    <button className={styles.editBtn}>
+                                    <button className={styles.editBtn} onClick={() => openModal(user)}>
                                         Изменить роль
                                         <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
                                             <path d="M5.25 2.333h-2.333A1.167 1.167 0 001.75 3.5v7A1.167 1.167 0 002.917 11.667h7A1.167 1.167 0 0011.083 10.5V8.167" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" />
@@ -184,7 +305,7 @@ const RoleManagementPage: React.FC = () => {
                         <button className={`${styles.paginationBtn} ${styles.active}`}>1</button>
                         <button className={styles.paginationBtn}>2</button>
                         <button className={styles.paginationBtn}>3</button>
-                        <span className={styles.paginationEllipsis}>…</span>
+                        <span className={styles.paginationEllipsis}>...</span>
                         <button className={styles.paginationBtn}>8</button>
                         <button className={styles.paginationBtn}>
                             <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
@@ -196,8 +317,17 @@ const RoleManagementPage: React.FC = () => {
             </div>
 
             <div className={styles.pageFooter}>
-                © 2024 University Data Management Systems. Все права защищены.
+                &copy; 2024 University Data Management Systems. Все права защищены.
             </div>
+
+            <RoleModal
+                open={!!editUser}
+                user={editUser}
+                selectedRoles={selectedRoles}
+                onToggle={toggleRole}
+                onClose={() => setEditUser(null)}
+                onSave={handleSave}
+            />
         </div>
     );
 };

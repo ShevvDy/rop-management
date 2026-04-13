@@ -3,12 +3,6 @@ import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
 import styles from './Header.module.css';
 
-const ROLE_LABELS: Record<string, string> = {
-    guest: 'Гость',
-    moderator: 'Модератор',
-    admin: 'Администратор',
-};
-
 const Header: React.FC = () => {
     const [showDropdown, setShowDropdown] = useState(false);
     const navigate = useNavigate();
@@ -25,7 +19,8 @@ const Header: React.FC = () => {
         return () => document.removeEventListener('mousedown', handleClickOutside);
     }, []);
 
-    const avatarUrl = user?.avatar ?? `https://api.dicebear.com/7.x/avataaars/svg?seed=${encodeURIComponent(user?.name ?? 'user')}&backgroundColor=b6e3f4`;
+    const fullName = [user?.surname, user?.name, user?.patronymic].filter(Boolean).join(' ') || '—';
+    const avatarUrl = user?.avatar ?? `https://api.dicebear.com/7.x/avataaars/svg?seed=${encodeURIComponent(fullName)}&backgroundColor=b6e3f4`;
 
     return (
         <header className={styles.header}>
@@ -37,29 +32,18 @@ const Header: React.FC = () => {
                         <path d="M8 14l6 3 6-3" stroke="#fff" strokeWidth="1.2" strokeLinecap="round" />
                         <path d="M8 17l6 3 6-3" stroke="#fff" strokeWidth="1.2" strokeLinecap="round" />
                     </svg>
-                    <span className={styles.brandName}>UniDataBase</span>
+                    <span className={styles.brandName}>UNITMO</span>
                     <span className={styles.brandDivider}>|</span>
                     <span className={styles.brandDescription}>Единый справочник контактов</span>
                 </div>
             </div>
 
             <div className={styles.right}>
-                <button className={styles.iconBtn}>
-                    <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
-                        <path d="M15 6.667a5 5 0 10-10 0c0 5.833-2.5 7.5-2.5 7.5h15s-2.5-1.667-2.5-7.5z" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
-                        <path d="M11.442 16.667a1.667 1.667 0 01-2.884 0" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
-                    </svg>
-                </button>
-                <button className={styles.iconBtn}>
-                    <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
-                        <path d="M17.5 12.5c0 .442-.176.866-.488 1.178-.313.313-.737.489-1.179.489H5.833L2.5 17.5V4.167c0-.442.176-.866.488-1.179A1.667 1.667 0 014.167 2.5h11.666c.442 0 .866.176 1.179.488.312.313.488.737.488 1.179V12.5z" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
-                    </svg>
-                </button>
+                {/* TODO: уведомления и чат — временно скрыты */}
 
                 <div className={styles.user} ref={dropdownRef}>
                     <div className={styles.userInfo}>
-                        <span className={styles.userName}>{user?.name ?? '—'}</span>
-                        <span className={styles.userRole}>{ROLE_LABELS[user?.role ?? ''] ?? user?.role}</span>
+                        <span className={styles.userName}>{fullName}</span>
                     </div>
                     <button
                         className={styles.avatarBtn}
@@ -73,8 +57,8 @@ const Header: React.FC = () => {
                             <div className={styles.dropdownProfile}>
                                 <img src={avatarUrl} alt="avatar" className={styles.dropdownAvatar} />
                                 <div className={styles.dropdownInfo}>
-                                    <span className={styles.dropdownName}>{user?.name}</span>
-                                    <span className={styles.dropdownEmail}>{user?.email}</span>
+                                    <span className={styles.dropdownName}>{fullName}</span>
+                                    <span className={styles.dropdownEmail}>{user?.email ?? '—'}</span>
                                 </div>
                             </div>
                             <div className={styles.dropdownDivider} />

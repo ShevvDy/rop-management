@@ -1,5 +1,5 @@
 import apiClient from './client';
-import type { CohortResponse, CohortCreatePayload, EducationPlanGraph, EducationPlanPayload } from './types';
+import type { CohortResponse, CohortCreatePayload, EducationPlanGraph, EducationPlanPayload, CohortStudentsResponse, StudentUpdatePayload } from './types';
 
 export async function getCohorts(skip = 0, limit = 100): Promise<CohortResponse[]> {
     const { data } = await apiClient.get<CohortResponse[]>('/cohort', {
@@ -26,5 +26,15 @@ export async function getCohortGraph(cohortId: number): Promise<EducationPlanGra
 
 export async function updateCohortGraph(cohortId: number, payload: EducationPlanPayload): Promise<EducationPlanGraph> {
     const { data } = await apiClient.put<EducationPlanGraph>(`/cohort/${cohortId}/graph`, payload);
+    return data;
+}
+
+export async function getCohortStudents(cohortId: number): Promise<CohortStudentsResponse> {
+    const { data } = await apiClient.get<CohortStudentsResponse>(`/cohort/${cohortId}/students`);
+    return data;
+}
+
+export async function updateCohortStudents(cohortId: number, updates: StudentUpdatePayload[]): Promise<CohortStudentsResponse> {
+    const { data } = await apiClient.put<CohortStudentsResponse>(`/cohort/${cohortId}/students`, updates);
     return data;
 }

@@ -8,6 +8,7 @@ export type CourseNodeData = {
     credits: number;
     type: 'required' | 'elective';
     semester: string;
+    elective_students_ids?: number[];
 };
 
 type CourseNodeType = Node<CourseNodeData>;
@@ -27,15 +28,18 @@ const typeStyles: Record<string, { border: string; badge: string; badgeBg: strin
     },
 };
 
-function CourseNode({ data, selected }: NodeProps<CourseNodeType>) {
+function CourseNode({ data, selected, targetPosition, sourcePosition }: NodeProps<CourseNodeType>) {
     const style = typeStyles[data.type] || typeStyles.core;
+    const isVkr = data.code === 'ВКР';
+    const tPos = targetPosition ?? Position.Top;
+    const sPos = sourcePosition ?? Position.Bottom;
 
     return (
         <div
             className={`${styles.node} ${selected ? styles.selected : ''}`}
             style={{ borderColor: selected ? '#135BEC' : style.border }}
         >
-            <Handle type="target" position={Position.Top} className={styles.handle} />
+            <Handle type="target" position={tPos} className={styles.handle} />
 
             <div className={styles.header}>
                 <span
@@ -57,7 +61,7 @@ function CourseNode({ data, selected }: NodeProps<CourseNodeType>) {
                 <span className={styles.credits}>{data.credits} Часа</span>
             </div>
 
-            <Handle type="source" position={Position.Bottom} className={styles.handle} />
+            {!isVkr && <Handle type="source" position={sPos} className={styles.handle} />}
         </div>
     );
 }

@@ -15,6 +15,7 @@ export interface UserBase {
     patronymic?: string | null;
     email?: string | null;
     phone?: string | null;
+    telegram?: string | null;
     isu_id?: number | null;
     avatar?: string | null;
 }
@@ -77,6 +78,34 @@ export interface CohortCreatePayload {
     manager_id?: number | null;
 }
 
+/* ── Student ── */
+
+export interface StudentBase {
+    student_id: number;
+    user: UserBase;
+    specialization_id: number | null;
+}
+
+export interface Specialization {
+    specialization_id: number;
+    name: string;
+}
+
+export interface CohortStudentsResponse {
+    students: StudentBase[];
+    specializations: Specialization[];
+}
+
+export interface StudentUpdatePayload {
+    student_id: number;
+    specialization_id: number | null;
+}
+
+export interface StudentCreatePayload {
+    user_id: number;
+    cohort_id: number;
+}
+
 /* ── Course ── */
 
 export interface CourseBase {
@@ -90,6 +119,7 @@ export interface CourseBase {
     syllabus_link?: string | null;
     rpd_link?: string | null;
     is_last?: boolean;
+    elective_students_ids?: number[];
 }
 
 export interface EducationPlanEdge {
@@ -113,6 +143,7 @@ export interface EducationPlanNodePayload {
     syllabus_link?: string | null;
     rpd_link?: string | null;
     is_last?: boolean;
+    elective_students_ids?: number[];
 }
 
 export interface EducationPlanPayload {
