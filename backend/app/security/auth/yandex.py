@@ -4,9 +4,9 @@ import requests
 from urllib.parse import urlencode
 
 from .base import AuthBase
-from ..exceptions import UnauthorizedException
-from ..utils.types import DictStrAny
-from ..settings import settings
+from ...exceptions import UnauthorizedException
+from ...utils.types import DictStrAny
+from ...settings import settings
 
 
 class AuthYandex(AuthBase):
