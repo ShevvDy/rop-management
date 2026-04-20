@@ -2,8 +2,7 @@ from typing import Type
 
 from fastapi import APIRouter
 
-from ..auth import get_provider_cls_by_name, get_provider_cls_by_refresh_token
-from ..auth.base import AuthBase
+from ..security import AuthBase, get_provider_cls_by_name, get_provider_cls_by_refresh_token
 from ..exceptions import BadRequestException, UnauthorizedException
 from ..models import User, OAuthProvider
 from ..schemas import GetAccessTokenSchema, GetRefreshTokenSchema, TokenResponseSchema
@@ -12,7 +11,7 @@ from ..utils.types import DictStrAny
 router = APIRouter(prefix="/auth", tags=["auth"])
 
 
-async def get_data_tokens(provider_cls: Type['AuthBase'], tokens: DictStrAny) -> DictStrAny:
+async def get_data_tokens(provider_cls: Type[AuthBase], tokens: DictStrAny) -> DictStrAny:
     info_from_token = provider_cls.get_info_from_jwt_token(tokens['access_token'])
     if info_from_token is None:
         raise UnauthorizedException()
@@ -88,7 +87,7 @@ def generate_code_challenge(code_verifier):
 
 @router.get('/login', response_model=dict)
 def login_view():
-    from ..auth.yandex import AuthYandex
+    from ..security.auth import AuthYandex
     code_verifier = generate_code_verifier()
     code_challenge = generate_code_challenge(code_verifier)
     render_data = AuthYandex.get_render_data()

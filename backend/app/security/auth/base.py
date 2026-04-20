@@ -3,8 +3,7 @@ from typing import Optional
 
 from jwcrypto.jwt import JWT, json_decode
 
-from ..utils.types import DictStrAny
-from ..settings import settings
+from ...utils.types import DictStrAny
 
 
 class AuthBase:

@@ -51,7 +51,7 @@ class Student(BaseNode):
     def is_active(self) -> bool:
         """Проверка активности студента"""
         today = BaseNode.today()
-        return self.start_date <= today < self.end_date
+        return self.start_date <= today < self.end_date  # noqa F821
 
     @classmethod
     async def _before_creation(cls, data: DictStrAny) -> None:

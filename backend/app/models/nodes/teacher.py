@@ -32,6 +32,13 @@ class Teacher(BaseNode):
         AsyncOne,
     )
 
+    @property
+    def is_active(self) -> bool:
+        today = BaseNode.today()
+        if self.start_date > today:  # noqa F821
+            return False
+        return self.end_date is None or today <= self.end_date  # noqa F821
+
     @classmethod
     async def _before_creation(cls, data: DictStrAny) -> None:
         from .user import User
