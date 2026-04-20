@@ -26,6 +26,7 @@ class User(BaseNode):
     patronymic = StringProperty()
     email = StringProperty(index=True)
     phone = StringProperty()
+    telegram = StringProperty()
     isu_id = IntegerProperty(index=True)
     is_admin = BooleanProperty(default=False)
     created_at = DateTimeProperty(default=BaseNode.now)

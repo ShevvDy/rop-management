@@ -1,0 +1,142 @@
+.page {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  background: var(--bg);
+  padding: 24px 16px;
+}
+
+.card {
+  width: 100%;
+  max-width: 420px;
+  background: #fff;
+  border-radius: 16px;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.08), 0 1px 4px rgba(0, 0, 0, 0.04);
+  padding: 40px 36px 32px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.logo {
+  margin-bottom: 20px;
+}
+
+.title {
+  font-size: 24px;
+  font-weight: 700;
+  color: var(--text);
+  margin-bottom: 8px;
+  text-align: center;
+}
+
+.subtitle {
+  font-size: 14px;
+  color: var(--text-secondary);
+  text-align: center;
+  line-height: 1.55;
+  margin-bottom: 32px;
+}
+
+.providers {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin-bottom: 24px;
+}
+
+.providerBtn {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 13px 16px;
+  border: 1.5px solid var(--border);
+  border-radius: 10px;
+  background: #fff;
+  cursor: pointer;
+  font-family: inherit;
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--text);
+  transition: border-color 0.15s, background 0.15s, box-shadow 0.15s;
+  text-align: left;
+}
+
+.providerBtn:hover {
+  border-color: var(--primary);
+  background: var(--primary-light);
+  box-shadow: 0 2px 8px rgba(19, 91, 236, 0.1);
+}
+
+.providerBtn:active {
+  transform: scale(0.99);
+}
+
+.providerIcon {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.providerLabel {
+  flex: 1;
+}
+
+.providerArrow {
+  flex-shrink: 0;
+  color: var(--text-muted);
+  display: flex;
+  align-items: center;
+  transition: transform 0.15s;
+}
+
+.providerBtn:hover .providerArrow {
+  transform: translateX(3px);
+  color: var(--primary);
+}
+
+.btnYandex:hover {
+  border-color: #FC3F1D;
+  background: #FFF3F1;
+  box-shadow: 0 2px 8px rgba(252, 63, 29, 0.1);
+}
+
+.btnYandex:hover .providerArrow {
+  color: #FC3F1D;
+}
+
+.btnItmo:hover {
+  border-color: #00A3FF;
+  background: #F0F9FF;
+  box-shadow: 0 2px 8px rgba(0, 163, 255, 0.1);
+}
+
+.btnItmo:hover .providerArrow {
+  color: #00A3FF;
+}
+
+.notice {
+  font-size: 12px;
+  color: var(--text-muted);
+  text-align: center;
+  line-height: 1.6;
+  padding: 14px 0 0;
+  border-top: 1px solid var(--border);
+  width: 100%;
+}
+
+.notice strong {
+  color: var(--text-secondary);
+  font-weight: 600;
+}
+
+.footer {
+  margin-top: 24px;
+  font-size: 12px;
+  color: var(--text-muted);
+}

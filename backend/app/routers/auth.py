@@ -97,8 +97,9 @@ def login_view():
         'auth_url': render_data['auth_url'] + code_challenge,
     }
 
-@router.get('/callback', response_model=dict)
-def callback_view(code: str):
-    return {
-        'code': code,
-    }
+@router.get('/callback')
+def callback_view(code: str, provider: str = 'yandex'):
+    from fastapi.responses import RedirectResponse
+    from urllib.parse import urlencode
+    params = urlencode({'code': code, 'provider': provider})
+    return RedirectResponse(url=f'http://localhost:5173/auth/callback?{params}')

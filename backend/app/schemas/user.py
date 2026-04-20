@@ -9,8 +9,10 @@ class UserBaseSchema(BaseModel):
     patronymic: Optional[str] = Field(None, description="Отчество пользователя")
     email: Optional[EmailStr] = Field(None, description="Email пользователя")
     phone: Optional[str] = Field(None, description="Телефон пользователя")
+    telegram: Optional[str] = Field(None, description="Telegram пользователя")
     isu_id: Optional[int] = Field(None, description="ID пользователя в ИСУ")
     avatar: Optional[str] = Field(None, description="URL аватара пользователя")
+    is_admin: bool = Field(False, description="Является ли пользователь администратором")
 
     model_config = ConfigDict(from_attributes=True)
 
@@ -26,8 +28,10 @@ class UserUpdateSchema(BaseModel):
     patronymic: Optional[str] = Field(None, description="Отчество пользователя")
     email: Optional[EmailStr] = Field(None, description="Email пользователя")
     phone: Optional[str] = Field(None, description="Телефон пользователя")
+    telegram: Optional[str] = Field(None, description="Telegram пользователя")
     isu_id: Optional[int] = Field(None, description="ID пользователя в ИСУ")
     avatar: Optional[str] = Field(None, description="URL аватара пользователя")
+    is_admin: Optional[bool] = Field(None, description="Является ли пользователь администратором")
     tags_ids: list[int] = Field([], description="Теги пользователя")
 
 

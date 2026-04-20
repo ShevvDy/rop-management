@@ -1,0 +1,1379 @@
+.page {
+  position: relative;
+  height: calc(100vh - var(--header-height) - 56px);
+  animation: fadeIn 0.3s ease;
+  display: flex;
+  flex-direction: column;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(6px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+/* ═══════════════════════════════════════════
+   Breadcrumb
+   ═══════════════════════════════════════════ */
+.breadcrumb {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 0 0 16px;
+  flex-shrink: 0;
+}
+
+.breadcrumbItem {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 12px;
+  border: none;
+  background: none;
+  border-radius: 8px;
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--text-muted);
+  cursor: pointer;
+  transition: all 0.15s;
+  font-family: inherit;
+}
+
+.breadcrumbItem:hover {
+  background: #F1F5F9;
+  color: var(--text);
+}
+
+.breadcrumbItem.active {
+  color: var(--text);
+  font-weight: 600;
+}
+
+.breadcrumbSep {
+  color: var(--text-muted);
+  flex-shrink: 0;
+}
+
+.breadcrumbDot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+/* ═══════════════════════════════════════════
+   Grid View (programs & years)
+   ═══════════════════════════════════════════ */
+.gridView {
+  flex: 1;
+  overflow-y: auto;
+  animation: fadeIn 0.25s ease;
+}
+
+.gridHeader {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  margin-bottom: 24px;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+
+.gridTitle {
+  font-size: 26px;
+  font-weight: 700;
+  color: var(--text);
+  margin-bottom: 4px;
+}
+
+.gridSubtitle {
+  font-size: 14px;
+  color: var(--text-muted);
+}
+
+.cardGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  grid-auto-rows: 1fr;
+  gap: 16px;
+}
+
+/* ── Program Card ── */
+.programCard {
+  position: relative;
+  background: #fff;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  display: flex;
+  flex-direction: column;
+  text-align: left;
+  cursor: pointer;
+  transition: box-shadow 0.2s, transform 0.2s;
+  overflow: hidden;
+  font-family: inherit;
+  padding: 0;
+}
+
+.programCard:hover {
+  box-shadow: 0 8px 28px rgba(0, 0, 0, 0.08);
+  transform: translateY(-2px);
+}
+
+.programCardAccent {
+  height: 4px;
+  width: 100%;
+  flex-shrink: 0;
+}
+
+.programCardBody {
+  padding: 20px;
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+}
+
+.programCardTop {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 12px;
+}
+
+.programDegree {
+  font-size: 11px;
+  font-weight: 600;
+  padding: 3px 10px;
+  border-radius: 6px;
+  letter-spacing: 0.02em;
+}
+
+.programCode {
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--text-muted);
+  font-variant-numeric: tabular-nums;
+}
+
+.programName {
+  font-size: 17px;
+  font-weight: 700;
+  color: var(--text);
+  margin-bottom: 4px;
+  line-height: 1.35;
+}
+
+.programFaculty {
+  font-size: 13px;
+  color: var(--text-muted);
+  margin-bottom: 16px;
+}
+
+.programStats {
+  display: flex;
+  gap: 16px;
+  margin-top: auto;
+  padding-top: 14px;
+  border-top: 1px solid var(--border);
+}
+
+.programStat {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  color: var(--text-secondary);
+}
+
+.programCardArrow {
+  position: absolute;
+  right: 16px;
+  top: 50%;
+  transform: translateY(-50%);
+  color: var(--text-muted);
+  opacity: 0;
+  transition: opacity 0.2s, transform 0.2s;
+}
+
+.programCard:hover .programCardArrow {
+  opacity: 1;
+  transform: translateY(-50%) translateX(3px);
+}
+
+/* ── Year Card ── */
+.yearCard {
+  position: relative;
+  background: #fff;
+  border: 2px solid var(--border);
+  border-radius: var(--radius);
+  padding: 24px;
+  display: flex;
+  flex-direction: column;
+  text-align: left;
+  cursor: pointer;
+  transition: all 0.2s;
+  font-family: inherit;
+}
+
+.yearCard:hover {
+  border-color: var(--primary);
+  box-shadow: 0 4px 20px rgba(19, 91, 236, 0.08);
+}
+
+.yearCardSelected {
+  border-color: var(--primary);
+  background: var(--primary-light);
+  box-shadow: 0 0 0 3px rgba(19, 91, 236, 0.12);
+}
+
+.yearCardCheck {
+  position: absolute;
+  bottom: 14px;
+  right: 14px;
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  background: var(--primary);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.yearCardTop {
+  display: flex;
+  align-items: center;
+  margin-bottom: 12px;
+}
+
+.yearNumber {
+  font-size: 32px;
+  font-weight: 800;
+  color: var(--text);
+  line-height: 1;
+  letter-spacing: -0.02em;
+}
+
+.yearStatus {
+  font-size: 11px;
+  font-weight: 600;
+  padding: 3px 10px;
+  border-radius: 6px;
+}
+
+.yearLabel {
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--text-secondary);
+  margin-bottom: 16px;
+}
+
+.yearStats {
+  display: flex;
+  gap: 16px;
+  padding-top: 14px;
+  border-top: 1px solid var(--border);
+}
+
+.yearStat {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 12px;
+  color: var(--text-secondary);
+}
+
+/* ── Create Card ── */
+.createCard {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  background: #FAFBFD;
+  border: 2px dashed #D1D5DB;
+  border-radius: var(--radius);
+  padding: 32px 20px;
+  cursor: pointer;
+  transition: all 0.2s;
+  min-height: 200px;
+  font-family: inherit;
+}
+
+.createCard:hover {
+  border-color: var(--primary);
+  background: var(--primary-light);
+}
+
+.createCardIcon {
+  width: 56px;
+  height: 56px;
+  border-radius: 50%;
+  background: #fff;
+  border: 2px dashed #D1D5DB;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--text-muted);
+  transition: all 0.2s;
+}
+
+.createCard:hover .createCardIcon {
+  border-color: var(--primary);
+  color: var(--primary);
+  background: #fff;
+}
+
+.createCardText {
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--text-secondary);
+}
+
+.createCard:hover .createCardText {
+  color: var(--primary);
+}
+
+.createCardHint {
+  font-size: 12px;
+  color: var(--text-muted);
+  text-align: center;
+}
+
+/* ── Selection Bar ── */
+.selectionBar {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 12px 16px;
+  background: var(--primary-light);
+  border: 1px solid rgba(19, 91, 236, 0.15);
+  border-radius: 10px;
+  margin-bottom: 20px;
+  flex-wrap: wrap;
+}
+
+.selectionBarLabel {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--primary);
+}
+
+.selectionChip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 12px;
+  background: var(--primary);
+  color: #fff;
+  font-size: 13px;
+  font-weight: 600;
+  border-radius: 8px;
+}
+
+.selectionChipRemove {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 18px;
+  height: 18px;
+  border: none;
+  background: rgba(255, 255, 255, 0.25);
+  border-radius: 50%;
+  color: #fff;
+  cursor: pointer;
+  padding: 0;
+  transition: background 0.15s;
+}
+
+.selectionChipRemove:hover {
+  background: rgba(255, 255, 255, 0.4);
+}
+
+.selectionHint {
+  font-size: 12px;
+  color: var(--text-muted);
+  font-style: italic;
+}
+
+/* ── Open Graph Button ── */
+.openGraphBtn {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 22px;
+  background: var(--primary);
+  color: #fff;
+  border: none;
+  border-radius: 8px;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.15s, opacity 0.15s;
+  font-family: inherit;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+.openGraphBtn:hover:not(:disabled) {
+  background: var(--primary-hover);
+}
+
+.openGraphBtn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+/* ═══════════════════════════════════════════
+   Graph View
+   ═══════════════════════════════════════════ */
+.graphView {
+  flex: 1;
+  display: flex;
+  gap: 0;
+  overflow: hidden;
+  border-radius: var(--radius);
+  border: 1px solid var(--border);
+  background: #fff;
+  position: relative;
+}
+
+.graphViewCompare {
+  gap: 0;
+}
+
+.graphPanel {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  position: relative;
+  min-height: 0;
+}
+
+.graphPanelCompact :global(.react-flow__controls) {
+  display: none;
+}
+
+.graphPanelLabel {
+  position: absolute;
+  top: 12px;
+  left: 12px;
+  z-index: 5;
+  padding: 6px 14px;
+  background: #fff;
+  border: 1px solid var(--border);
+  border-left: 3px solid var(--primary);
+  border-radius: 8px;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text);
+  box-shadow: var(--shadow-sm);
+}
+
+.compareDivider {
+  width: 1px;
+  background: var(--border);
+  position: relative;
+  flex-shrink: 0;
+}
+
+.compareDividerLabel {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  background: var(--primary);
+  color: #fff;
+  font-size: 11px;
+  font-weight: 800;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 2px 8px rgba(19, 91, 236, 0.3);
+  z-index: 5;
+}
+
+/* Legend floating */
+.legendFloat {
+  position: absolute;
+  bottom: 16px;
+  right: 16px;
+  z-index: 5;
+  background: #fff;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 10px 16px;
+  box-shadow: var(--shadow-sm);
+}
+
+.legendItems {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+.legendItem {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  color: var(--text-secondary);
+}
+
+.legendDot {
+  width: 12px;
+  height: 12px;
+  border-radius: 3px;
+}
+
+.legendLine {
+  width: 20px;
+  height: 2px;
+  background: #94A3B8;
+  border-radius: 1px;
+}
+
+/* ═══════════════════════════════════════════
+   Graph Toolbar (auto-layout + save)
+   ═══════════════════════════════════════════ */
+.graphToolbar {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px;
+  background: #fff;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  box-shadow: var(--shadow-sm);
+}
+
+.toolbarBtn {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 6px 10px;
+  border: none;
+  background: none;
+  border-radius: 7px;
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--text-secondary);
+  cursor: pointer;
+  transition: background 0.12s, color 0.12s;
+  font-family: inherit;
+  white-space: nowrap;
+}
+
+.toolbarBtn:hover {
+  background: #F1F5F9;
+  color: var(--text);
+}
+
+.toolbarBtnSave {
+  color: #94A3B8;
+}
+
+.toolbarBtnSave:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.toolbarBtnDirty {
+  color: var(--primary);
+  background: var(--primary-light);
+}
+
+.toolbarBtnDirty:hover {
+  background: rgba(19, 91, 236, 0.12);
+}
+
+.toolbarBtnBlocked {
+  color: #D97706 !important;
+  background: #FEF3C7 !important;
+}
+
+.toolbarBtnBlocked:hover {
+  background: #FDE68A !important;
+}
+
+.toolbarDivider {
+  width: 1px;
+  height: 20px;
+  background: var(--border);
+  margin: 0 2px;
+  flex-shrink: 0;
+}
+
+/* ── Orphan warning banner ── */
+.orphanBanner {
+  position: absolute;
+  top: 56px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 15;
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  padding: 10px 18px;
+  background: linear-gradient(135deg, #FEF3C7, #FEF9E7);
+  border: 1px solid #FDE68A;
+  border-radius: 10px;
+  font-size: 12px;
+  font-weight: 500;
+  color: #92400E;
+  box-shadow: 0 4px 16px rgba(217, 119, 6, 0.12);
+  width: max-content;
+  max-width: min(480px, calc(100% - 32px));
+  animation: bannerIn 0.25s ease;
+  line-height: 1.5;
+}
+
+.orphanBanner svg {
+  flex-shrink: 0;
+  color: #D97706;
+  margin-top: 2px;
+}
+
+.orphanBanner strong {
+  font-weight: 700;
+}
+
+@keyframes bannerIn {
+  from { opacity: 0; transform: translateX(-50%) translateY(-8px); }
+  to   { opacity: 1; transform: translateX(-50%) translateY(0); }
+}
+
+/* ── Node wrapper (deletable + orphan highlight) ── */
+.nodeWrapper {
+  position: relative;
+}
+
+.nodeWrapper:hover .nodeDeleteBtn {
+  opacity: 1;
+}
+
+.nodeDeleteBtn {
+  position: absolute;
+  top: -6px;
+  right: -6px;
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  background: #fff;
+  border: 1.5px solid #E2E8F0;
+  color: #94A3B8;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  opacity: 0;
+  transition: all 0.15s;
+  z-index: 10;
+  padding: 0;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.08);
+}
+
+.nodeDeleteBtn:hover {
+  border-color: #EF4444;
+  color: #fff;
+  background: #EF4444;
+  transform: scale(1.1);
+  box-shadow: 0 2px 8px rgba(239, 68, 68, 0.3);
+}
+
+.nodeOrphan {
+  border-radius: 12px;
+  animation: orphanPulse 2s ease-in-out infinite;
+}
+
+@keyframes orphanPulse {
+  0%, 100% { box-shadow: 0 0 0 3px rgba(239, 68, 68, 0.35); }
+  50%      { box-shadow: 0 0 0 3px rgba(239, 68, 68, 0.35), 0 0 16px rgba(239, 68, 68, 0.15); }
+}
+
+.nodeOrphanBadge {
+  position: absolute;
+  bottom: -26px;
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 3px 10px;
+  background: #FEF2F2;
+  border: 1px solid #FECACA;
+  border-radius: 6px;
+  font-size: 10px;
+  font-weight: 600;
+  color: #DC2626;
+  white-space: nowrap;
+  box-shadow: 0 2px 6px rgba(239, 68, 68, 0.1);
+  z-index: 5;
+  pointer-events: none;
+}
+
+.nodeOrphanBadge svg {
+  color: #DC2626;
+  flex-shrink: 0;
+}
+
+/* ── Diff highlighting (compare mode) ── */
+.nodeDiffAdded {
+  border-radius: 12px;
+  animation: diffAddedPulse 2.5s ease-in-out infinite;
+}
+
+@keyframes diffAddedPulse {
+  0%, 100% { box-shadow: 0 0 0 3px rgba(22, 163, 74, 0.35); }
+  50%      { box-shadow: 0 0 0 3px rgba(22, 163, 74, 0.35), 0 0 20px rgba(22, 163, 74, 0.15); }
+}
+
+.nodeDiffSame {
+  opacity: 0.55;
+  filter: saturate(0.3);
+  transition: opacity 0.2s, filter 0.2s;
+}
+
+.nodeDiffSame:hover {
+  opacity: 0.85;
+  filter: saturate(0.7);
+}
+
+.nodeDiffRemoved {
+  border-radius: 12px;
+  opacity: 0.35;
+}
+
+.nodeDiffBadge {
+  position: absolute;
+  bottom: -26px;
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 3px 10px;
+  border-radius: 6px;
+  font-size: 10px;
+  font-weight: 600;
+  white-space: nowrap;
+  z-index: 5;
+  pointer-events: none;
+  background: #F0FDF4;
+  border: 1px solid #BBF7D0;
+  color: #16A34A;
+  box-shadow: 0 2px 8px rgba(22, 163, 74, 0.12);
+}
+
+.nodeDiffBadge svg {
+  flex-shrink: 0;
+}
+
+.edgeDiffBadge {
+  padding: 2px 8px;
+  background: #F0FDF4;
+  border: 1px solid #BBF7D0;
+  border-radius: 4px;
+  font-size: 9px;
+  font-weight: 600;
+  color: #16A34A;
+  white-space: nowrap;
+  box-shadow: 0 1px 4px rgba(22, 163, 74, 0.1);
+}
+
+/* ── Read-only badge ── */
+.readOnlyBadge {
+  display: inline-block;
+  margin-left: 8px;
+  padding: 2px 8px;
+  background: #F1F5F9;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  font-size: 10px;
+  font-weight: 600;
+  color: var(--text-muted);
+  letter-spacing: 0.02em;
+  vertical-align: middle;
+}
+
+/* ── Legend divider ── */
+.legendDivider {
+  width: 1px;
+  height: 16px;
+  background: var(--border);
+  flex-shrink: 0;
+}
+
+/* ── Spinner ── */
+.spinnerIcon {
+  animation: spin 0.8s linear infinite;
+}
+
+@keyframes spin {
+  from { transform: rotate(0deg); }
+  to   { transform: rotate(360deg); }
+}
+
+/* React Flow overrides */
+.graphPanel :global(.react-flow__controls) {
+  bottom: 16px;
+  left: 16px;
+  box-shadow: var(--shadow-md);
+  border-radius: 8px;
+  overflow: hidden;
+  border: 1px solid var(--border);
+}
+
+.graphPanel :global(.react-flow__controls-button) {
+  width: 34px;
+  height: 34px;
+  border: none;
+  border-bottom: 1px solid var(--border);
+  background: #fff;
+}
+
+.graphPanel :global(.react-flow__controls-button:hover) {
+  background: var(--primary-light);
+}
+
+.graphPanel :global(.react-flow__controls-button:last-child) {
+  border-bottom: none;
+}
+
+.graphPanel :global(.react-flow__pane) {
+  cursor: default !important;
+}
+
+.graphPanel :global(.react-flow__pane.dragging) {
+  cursor: grabbing !important;
+}
+
+.graphPanel :global(.react-flow__handle) {
+  cursor: crosshair !important;
+}
+
+/* Edge: wider hover zone for easier interaction */
+.graphPanel :global(.react-flow__edge-interaction) {
+  stroke-width: 24px !important;
+  cursor: pointer !important;
+}
+
+/* Edge reconnect handles — large, visible grab circles at ends */
+.graphPanel :global(.react-flow__reconnect-handle) {
+  width: 16px !important;
+  height: 16px !important;
+  background: #fff !important;
+  border: 2px solid #94A3B8 !important;
+  border-radius: 50% !important;
+  opacity: 0;
+  transition: opacity 0.15s, border-color 0.15s, background 0.15s, transform 0.15s;
+  cursor: grab !important;
+}
+
+.graphPanel :global(.react-flow__edge:hover .react-flow__reconnect-handle) {
+  opacity: 1;
+}
+
+.graphPanel :global(.react-flow__reconnect-handle:hover) {
+  border-color: #EF4444 !important;
+  background: #FEF2F2 !important;
+  transform: scale(1.3);
+}
+
+/* Back button — positioned in breadcrumb area, not overlapping controls */
+.backBtn {
+  position: absolute;
+  right: 0;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 7px 16px;
+  background: #fff;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  box-shadow: var(--shadow-sm);
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text);
+  cursor: pointer;
+  z-index: 10;
+  transition: all 0.15s;
+  font-family: inherit;
+}
+
+.backBtn:hover {
+  background: var(--primary-light);
+  color: var(--primary);
+  border-color: var(--primary);
+}
+
+/* ═══════════════════════════════════════════
+   Edge delete button
+   ═══════════════════════════════════════════ */
+.edgeDeleteBtn {
+  width: 22px;
+  height: 22px;
+  background: #fff;
+  border: 1.5px solid #CBD5E1;
+  border-radius: 50%;
+  font-size: 15px;
+  line-height: 1;
+  color: #94A3B8;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  opacity: 0;
+  transition: opacity 0.15s, border-color 0.15s, color 0.15s, background 0.15s, transform 0.15s;
+  padding: 0;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.1);
+}
+
+:global(.react-flow__edge:hover) .edgeDeleteBtn,
+:global(.react-flow__edge.selected) .edgeDeleteBtn {
+  opacity: 1;
+}
+
+.edgeDeleteBtn:hover {
+  border-color: #EF4444;
+  color: #fff;
+  background: #EF4444;
+  transform: scale(1.15);
+  box-shadow: 0 2px 8px rgba(239, 68, 68, 0.3);
+}
+
+/* ═══════════════════════════════════════════
+   Context Menu
+   ═══════════════════════════════════════════ */
+.contextMenu {
+  position: fixed;
+  z-index: 100;
+  background: #fff;
+  border: 1px solid #E2E8F0;
+  border-radius: 8px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12);
+  padding: 4px;
+  min-width: 180px;
+}
+
+.contextMenuItem {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  padding: 8px 12px;
+  border: none;
+  background: none;
+  border-radius: 6px;
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--text);
+  cursor: pointer;
+  text-align: left;
+  transition: background 0.1s;
+  font-family: inherit;
+}
+
+.contextMenuItem:hover {
+  background: #F1F5F9;
+  color: #135BEC;
+}
+
+.contextMenuItem svg {
+  color: #135BEC;
+  flex-shrink: 0;
+}
+
+/* ═══════════════════════════════════════════
+   Dialog / Modal
+   ═══════════════════════════════════════════ */
+.dialogOverlay {
+  position: fixed;
+  inset: 0;
+  z-index: 200;
+  background: rgba(15, 23, 42, 0.35);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  animation: backdropIn 0.15s ease;
+}
+
+@keyframes backdropIn {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+
+.dialog {
+  background: #fff;
+  border-radius: 12px;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.18);
+  width: 440px;
+  max-width: calc(100vw - 32px);
+  display: flex;
+  flex-direction: column;
+  animation: dialogIn 0.2s ease;
+}
+
+@keyframes dialogIn {
+  from { opacity: 0; transform: translateY(12px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+.dialogHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 18px 20px 14px;
+  border-bottom: 1px solid #F1F5F9;
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--text);
+}
+
+.dialogClose {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border: none;
+  background: none;
+  border-radius: 6px;
+  color: #94A3B8;
+  cursor: pointer;
+  transition: background 0.1s, color 0.1s;
+}
+
+.dialogClose:hover {
+  background: #F1F5F9;
+  color: var(--text);
+}
+
+.dialogBody {
+  padding: 16px 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.dialogLabel {
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  color: #94A3B8;
+  margin-top: 10px;
+  margin-bottom: 4px;
+  display: block;
+}
+
+.dialogLabel:first-child {
+  margin-top: 0;
+}
+
+.dialogInput,
+.dialogSelect {
+  width: 100%;
+  padding: 8px 10px;
+  border: 1.5px solid #E2E8F0;
+  border-radius: 7px;
+  font-size: 13px;
+  color: var(--text);
+  background: #fff;
+  outline: none;
+  box-sizing: border-box;
+  transition: border-color 0.15s;
+  font-family: 'Inter', sans-serif;
+}
+
+.dialogInput:focus,
+.dialogSelect:focus {
+  border-color: #135BEC;
+  box-shadow: 0 0 0 3px rgba(19, 91, 236, 0.1);
+}
+
+.dialogRow {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+}
+
+.dialogField {
+  display: flex;
+  flex-direction: column;
+}
+
+.dialogHint {
+  font-size: 12px;
+  color: var(--text-muted);
+  margin-top: 8px;
+  line-height: 1.5;
+}
+
+.dialogFooter {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px;
+  padding: 14px 20px 18px;
+  border-top: 1px solid #F1F5F9;
+}
+
+.dialogBtnCancel {
+  padding: 8px 16px;
+  border: 1.5px solid #E2E8F0;
+  border-radius: 7px;
+  background: #fff;
+  font-size: 13px;
+  font-weight: 500;
+  color: #64748B;
+  cursor: pointer;
+  transition: background 0.1s, border-color 0.1s;
+  font-family: 'Inter', sans-serif;
+}
+
+.dialogBtnCancel:hover {
+  background: #F8FAFC;
+  border-color: #CBD5E1;
+}
+
+.dialogBtnSubmit {
+  padding: 8px 20px;
+  border: none;
+  border-radius: 7px;
+  background: #135BEC;
+  font-size: 13px;
+  font-weight: 600;
+  color: #fff;
+  cursor: pointer;
+  transition: background 0.1s, opacity 0.1s;
+  font-family: 'Inter', sans-serif;
+}
+
+.dialogBtnSubmit:hover:not(:disabled) {
+  background: #0e4bd4;
+}
+
+.dialogBtnSubmit:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+/* ── Color Picker ── */
+.colorPicker {
+  display: flex;
+  gap: 8px;
+  margin-top: 4px;
+  flex-wrap: wrap;
+}
+
+.colorSwatch {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  border: 3px solid transparent;
+  cursor: pointer;
+  transition: border-color 0.15s, transform 0.15s;
+  padding: 0;
+}
+
+.colorSwatch:hover {
+  transform: scale(1.15);
+}
+
+.colorSwatch.active {
+  border-color: var(--text);
+  box-shadow: 0 0 0 2px #fff inset;
+}
+
+/* ═══════════════════════════════════════════
+   Responsive
+   ═══════════════════════════════════════════ */
+@media (max-width: 1100px) {
+  .cardGrid {
+    grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+  }
+
+  .graphViewCompare {
+    flex-direction: column;
+  }
+
+  .compareDivider {
+    width: 100%;
+    height: 1px;
+  }
+
+  .compareDividerLabel {
+    top: 50%;
+    left: 50%;
+  }
+}
+
+@media (max-width: 768px) {
+  .cardGrid {
+    grid-template-columns: 1fr;
+  }
+
+  .gridHeader {
+    flex-direction: column;
+  }
+}
+
+/* ── Skeleton loading cards ── */
+@keyframes shimmer {
+  0% { background-position: -400px 0; }
+  100% { background-position: 400px 0; }
+}
+
+.skeletonCard {
+  border-radius: var(--radius);
+  border: 1px solid var(--border);
+  background: #fff;
+  padding: 20px;
+  min-height: 140px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.skeletonLine {
+  height: 14px;
+  border-radius: 6px;
+  background: linear-gradient(90deg, #F1F5F9 25%, #E2E8F0 50%, #F1F5F9 75%);
+  background-size: 800px 100%;
+  animation: shimmer 1.5s infinite ease-in-out;
+}
+
+.skeletonLineShort { width: 40%; }
+.skeletonLineMedium { width: 70%; }
+.skeletonLineLong { width: 90%; }
+
+/* ── Delete button on cards ── */
+.cardDeleteBtn {
+  position: absolute;
+  top: 12px;
+  right: 10px;
+  width: 28px;
+  height: 28px;
+  border: none;
+  background: none;
+  color: var(--text-muted);
+  cursor: pointer;
+  border-radius: 6px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  opacity: 0;
+  transition: all 0.15s;
+  z-index: 3;
+}
+
+.cardDeleteBtn:hover {
+  background: #FEE2E2;
+  color: #EF4444;
+}
+
+/* ── Delete confirmation modal ── */
+.deleteBackdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.4);
+  z-index: 1000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  animation: fadeInBackdrop 0.15s ease;
+}
+
+@keyframes fadeInBackdrop {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+.deleteModal {
+  background: #fff;
+  border-radius: 16px;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.2);
+  width: 400px;
+  max-width: 90vw;
+  padding: 32px;
+  text-align: center;
+  animation: modalPop 0.2s ease;
+}
+
+@keyframes modalPop {
+  from { opacity: 0; transform: scale(0.95); }
+  to { opacity: 1; transform: scale(1); }
+}
+
+.deleteIcon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 56px;
+  height: 56px;
+  border-radius: 50%;
+  background: #FEF2F2;
+  margin-bottom: 16px;
+}
+
+.deleteTitle {
+  font-size: 18px;
+  font-weight: 700;
+  color: var(--text);
+  margin-bottom: 8px;
+}
+
+.deleteMessage {
+  font-size: 14px;
+  color: var(--text-muted);
+  line-height: 1.5;
+  margin-bottom: 24px;
+}
+
+.deleteActions {
+  display: flex;
+  gap: 10px;
+}
+
+.deleteCancelBtn {
+  flex: 1;
+  padding: 10px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: #fff;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text-secondary);
+  cursor: pointer;
+  font-family: inherit;
+  transition: all 0.15s;
+}
+
+.deleteCancelBtn:hover:not(:disabled) {
+  border-color: var(--text-muted);
+  color: var(--text);
+}
+
+.deleteCancelBtn:disabled { opacity: 0.5; cursor: not-allowed; }
+
+.deleteConfirmBtn {
+  flex: 1;
+  padding: 10px;
+  border: none;
+  border-radius: 10px;
+  background: #EF4444;
+  font-size: 14px;
+  font-weight: 600;
+  color: #fff;
+  cursor: pointer;
+  font-family: inherit;
+  transition: background 0.15s;
+}
+
+.deleteConfirmBtn:hover:not(:disabled) { background: #DC2626; }
+.deleteConfirmBtn:disabled { opacity: 0.6; cursor: not-allowed; }
+
+.programCard:hover .cardDeleteBtn,
+.yearCard:hover .cardDeleteBtn {
+  opacity: 1;
+}

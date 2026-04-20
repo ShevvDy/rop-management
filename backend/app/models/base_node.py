@@ -213,12 +213,12 @@ class BaseNode(AsyncStructuredNode):
 
         # Применяем фильтры
         if filters:
-            query.filter(**filters)
+            query = query.filter(**filters)
 
         # Сортировка
         if not order_by:
             order_by = cls._get_pk_name()  # Сортируем по ID по умолчанию
-        query.order_by(order_by)
+        query = query.order_by(order_by)
 
         # Пагинация
         query.skip = skip

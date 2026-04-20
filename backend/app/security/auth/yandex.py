@@ -17,7 +17,7 @@ class AuthYandex(AuthBase):
         headers = {'Content-Type': 'application/x-www-form-urlencoded'}
         params['client_id'] = settings.YANDEX_CLIENT_ID
         params['client_secret'] = settings.YANDEX_CLIENT_SECRET
-        response = requests.post(settings.YANDEX_TOKEN_URL, headers=headers, data=params)
+        response = requests.post(settings.YANDEX_TOKEN_URL, headers=headers, data=params, timeout=10)
         if response.status_code != 200:
             raise UnauthorizedException()
         data = response.json()
@@ -45,7 +45,10 @@ class AuthYandex(AuthBase):
     @classmethod
     def get_info_from_jwt_token(cls, jwt_token: str) -> Optional[DictStrAny]:
         headers = {'Authorization': f'OAuth {jwt_token}'}
-        response = requests.get(settings.YANDEX_INFO_URL, headers=headers)
+        try:
+            response = requests.get(settings.YANDEX_INFO_URL, headers=headers, timeout=5)
+        except requests.exceptions.RequestException:
+            return None
         if response.status_code != 200:
             return None
         data = response.json()
