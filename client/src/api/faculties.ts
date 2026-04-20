@@ -12,3 +12,7 @@ export async function createFaculty(payload: FacultyCreatePayload): Promise<Facu
     const { data } = await apiClient.post<FacultyResponse>('/faculty', payload);
     return data;
 }
+
+export async function deleteFaculty(facultyId: number): Promise<void> {
+    await apiClient.delete(`/faculty/${facultyId}`);
+}

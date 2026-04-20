@@ -76,15 +76,24 @@ class Course(BaseNode):
         AsyncZeroOrMore,
     )
 
+    # Преподаватели курса
+    teachers_rel = AsyncRelationshipTo(
+        ".user.User",
+        "TAUGHT_BY",
+        AsyncZeroOrMore,
+    )
+
     @classmethod
     async def _before_creation(cls, data: DictStrAny) -> None:
         from .cohort import Cohort
         from .specialization import Specialization
         from .tag import Tag
         from .student import Student
+        from .user import User
 
         await cls._check_relationship_before_creation(data, 'cohort', Cohort)
         await cls._check_relationship_before_creation(data, 'specialization', Specialization)
+        await cls._check_relationship_before_creation(data, 'teachers', User)
 
         specialization = data.get('specialization_obj')
         cohort = data.get('cohort_obj')
@@ -122,13 +131,16 @@ class Course(BaseNode):
         await self._update_relationship(data, "prerequisites")
         await self._update_relationship(data, "tags")
         await self._update_relationship(data, 'elective_students')
+        await self._update_relationship(data, 'teachers')
 
     async def _before_update(self, data: DictStrAny) -> None:
         from .specialization import Specialization
         from .tag import Tag
         from .student import Student
+        from .user import User
 
         await self._check_relationship_before_update(data, 'specialization', Specialization)
+        await self._check_relationship_before_update(data, 'teachers', User)
         specialization = data.get('specialization_obj')
         if specialization:
             await specialization.load_relations('cohort')
@@ -168,6 +180,7 @@ class Course(BaseNode):
         await self._update_relationship(data, "prerequisites")
         await self._update_relationship(data, "tags")
         await self._update_relationship(data, "elective_students")
+        await self._update_relationship(data, "teachers")
 
     @classmethod
     async def check_nodes(cls, data: list[DictStrAny], total_semesters: int) -> CourseNodes:

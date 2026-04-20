@@ -28,10 +28,11 @@ const iconMap: Record<string, React.ReactNode> = {
     ),
     students: (
         <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
-            <path d="M4 17v-1a4 4 0 014-4h0" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
-            <circle cx="8" cy="7" r="3" stroke="currentColor" strokeWidth="1.5" />
-            <path d="M12 17v-1a4 4 0 014-4h0" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
-            <circle cx="16" cy="7" r="3" stroke="currentColor" strokeWidth="1.5" />
+            <path d="M3 4.5h14M3 4.5v12a1 1 0 001 1h12a1 1 0 001-1v-12" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+            <path d="M7 1.5v3M13 1.5v3" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+            <path d="M6 9h3M6 12.5h5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+            <path d="M13.5 9.5l-1 3.5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+            <path d="M12.5 13h2" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" />
         </svg>
     ),
     upload: (
@@ -42,10 +43,10 @@ const iconMap: Record<string, React.ReactNode> = {
     ),
     roles: (
         <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
-            <circle cx="7.5" cy="6" r="2.5" stroke="currentColor" strokeWidth="1.5" />
-            <circle cx="13.5" cy="6" r="2.5" stroke="currentColor" strokeWidth="1.5" />
-            <path d="M1.5 17c0-3.31 2.69-6 6-6 1.1 0 2.13.3 3 .82" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
-            <path d="M12 14l1.5 1.5L17 12" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+            <rect x="3" y="2" width="14" height="16" rx="2" stroke="currentColor" strokeWidth="1.5" />
+            <path d="M7 6h6M7 9.5h6M7 13h4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+            <circle cx="15" cy="15" r="4" fill="white" stroke="currentColor" strokeWidth="1.5" />
+            <path d="M13.5 15l1 1 2-2" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" strokeLinejoin="round" />
         </svg>
     ),
 };
@@ -73,7 +74,7 @@ const Sidebar: React.FC = () => {
                 </div>
                 <div className={styles.logoText}>
                     <span className={styles.logoTitle}>Админ-панель</span>
-                    <span className={styles.logoSubtitle}>Университет</span>
+                    {/* <span className={styles.logoSubtitle}>Университет</span> */}
                 </div>
             </div>
 

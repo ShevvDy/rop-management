@@ -10,6 +10,7 @@ export default defineConfig({
       '/api/v1': {
         target: 'http://127.0.0.1:5000',
         changeOrigin: true,
+        rewrite: (path) => path.replace(/^\/api\/v1/, ''),
       },
       '/auth/token': {
         target: 'http://127.0.0.1:5000',

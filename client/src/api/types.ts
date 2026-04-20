@@ -8,6 +8,11 @@ export interface FacultyBase {
     short_name: string | null;
 }
 
+export interface TagBase {
+    tag_id: number;
+    name: string;
+}
+
 export interface UserBase {
     user_id: number;
     name: string;
@@ -18,6 +23,59 @@ export interface UserBase {
     telegram?: string | null;
     isu_id?: number | null;
     avatar?: string | null;
+    is_admin: boolean;
+}
+
+export interface UserResponse extends UserBase {
+    tags: TagBase[];
+}
+
+export interface UserWithRelations extends UserResponse {
+    student_data: StudentRecord[];
+    teacher_data: TeacherRecord[];
+    directed_cohorts: CohortWithProgram[];
+    managed_cohorts: CohortWithProgram[];
+}
+
+export interface StudentRecord {
+    student_id: number;
+    start_date: string;
+    end_date: string;
+    status?: string | null;
+    cohort: CohortWithProgram;
+}
+
+export interface TeacherRecord {
+    teacher_id: number;
+    start_date: string;
+    end_date: string | null;
+    position?: string | null;
+}
+
+export interface TeacherCreatePayload {
+    user_id: number;
+    faculty_id: number;
+    start_date: string;
+    end_date?: string | null;
+}
+
+export interface CohortWithProgram {
+    cohort_id: number;
+    cohort_year: number;
+    program: ProgramBase;
+}
+
+export interface UserUpdatePayload {
+    name?: string;
+    surname?: string;
+    patronymic?: string | null;
+    is_admin?: boolean;
+    email?: string | null;
+    phone?: string | null;
+    telegram?: string | null;
+    isu_id?: number | null;
+    avatar?: string | null;
+    tags_ids?: number[];
 }
 
 /* ── Program ── */
@@ -104,6 +162,9 @@ export interface StudentUpdatePayload {
 export interface StudentCreatePayload {
     user_id: number;
     cohort_id: number;
+    start_date: string;
+    end_date: string;
+    specialization_id?: number | null;
 }
 
 /* ── Course ── */
@@ -120,6 +181,7 @@ export interface CourseBase {
     rpd_link?: string | null;
     is_last?: boolean;
     elective_students_ids?: number[];
+    teachers_ids?: number[];
 }
 
 export interface EducationPlanEdge {

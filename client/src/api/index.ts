@@ -5,3 +5,6 @@ export * from './cohorts';
 export * from './faculties';
 export * from './students';
 export * from './courses';
+export * from './users';
+export * from './teachers';
+export * from './specializations';

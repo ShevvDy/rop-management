@@ -1,10 +1,11 @@
 import React, { useState, useCallback, useMemo, useRef, useEffect, createContext, useContext } from 'react';
 import { useToast } from '../../components/Toast';
-import { getPrograms, getProgram, createProgram as apiCreateProgram } from '../../api/programs';
-import { createCohort as apiCreateCohort, getCohortGraph, updateCohortGraph } from '../../api/cohorts';
+import { getPrograms, getProgram, createProgram as apiCreateProgram, deleteProgram as apiDeleteProgram } from '../../api/programs';
+import { createCohort as apiCreateCohort, getCohortGraph, updateCohortGraph, getCohortStudents, deleteCohort as apiDeleteCohort } from '../../api/cohorts';
 import { updateCourse } from '../../api/courses';
-import { getFaculties, createFaculty as apiCreateFaculty } from '../../api/faculties';
-import type { ProgramResponse, ProgramWithRelations, FacultyResponse, CohortInProgram, EducationPlanGraph } from '../../api/types';
+import { getFaculties, createFaculty as apiCreateFaculty, deleteFaculty as apiDeleteFaculty } from '../../api/faculties';
+import { getTags, getUsers } from '../../api/users';
+import type { ProgramResponse, ProgramWithRelations, FacultyResponse, CohortInProgram, EducationPlanGraph, StudentBase, Specialization, TagBase } from '../../api/types';
 import {
     ReactFlow,
     ReactFlowProvider,
@@ -323,6 +324,7 @@ const apiGraphToFlowData = (graph: EducationPlanGraph): YearGraphData => {
             teachers: [],
             materials: [],
             elective_students_ids: c.elective_students_ids,
+            teachers_ids: c.teachers_ids,
         };
     });
 
@@ -1046,9 +1048,10 @@ interface CreateYearModalProps { onClose: () => void; onCreate: (y: YearPlan) =>
 const CreateYearModal: React.FC<CreateYearModalProps> = ({ onClose, onCreate, existingYears, programId }) => {
     const toast = useToast();
     const currentYear = new Date().getFullYear();
-    const availableYears = Array.from({ length: 6 }, (_, i) => currentYear + 2 - i).filter((y) => !existingYears.includes(y));
-    const [year, setYear] = useState(availableYears[0] || currentYear);
+    const [year, setYear] = useState(currentYear);
     const [submitting, setSubmitting] = useState(false);
+    const isDuplicate = existingYears.includes(year);
+    const isValid = year >= 2000 && year <= 2100 && !isDuplicate;
 
     useEffect(() => {
         const h = (e: KeyboardEvent) => { if (e.key === 'Escape') onClose(); };
@@ -1057,6 +1060,7 @@ const CreateYearModal: React.FC<CreateYearModalProps> = ({ onClose, onCreate, ex
     }, [onClose]);
 
     const handleSubmit = async () => {
+        if (!isValid) return;
         setSubmitting(true);
         try {
             const resp = await apiCreateCohort({
@@ -1091,16 +1095,26 @@ const CreateYearModal: React.FC<CreateYearModalProps> = ({ onClose, onCreate, ex
                 </div>
                 <div className={styles.dialogBody}>
                     <label className={styles.dialogLabel}>ГОД НАБОРА</label>
-                    <select className={styles.dialogSelect} value={year} onChange={(e) => setYear(Number(e.target.value))}>
-                        {availableYears.map((y) => (
-                            <option key={y} value={y}>{y}/{y + 1}</option>
-                        ))}
-                    </select>
-                    <p className={styles.dialogHint}>Будет создан пустой учебный план для набора {year}/{year + 1} года в статусе «Черновик».</p>
+                    <input
+                        type="number"
+                        className={styles.dialogSelect}
+                        value={year}
+                        onChange={(e) => setYear(Number(e.target.value))}
+                        min={2000}
+                        max={2100}
+                        autoFocus
+                        onKeyDown={(e) => { if (e.key === 'Enter' && isValid) handleSubmit(); }}
+                    />
+                    {isDuplicate && (
+                        <p className={styles.dialogHint} style={{ color: '#EF4444' }}>Когорта {year}/{year + 1} уже существует</p>
+                    )}
+                    {!isDuplicate && isValid && (
+                        <p className={styles.dialogHint}>Будет создан пустой учебный план для набора {year}/{year + 1} года.</p>
+                    )}
                 </div>
                 <div className={styles.dialogFooter}>
                     <button className={styles.dialogBtnCancel} onClick={onClose}>Отмена</button>
-                    <button className={styles.dialogBtnSubmit} disabled={availableYears.length === 0 || submitting} onClick={handleSubmit}>
+                    <button className={styles.dialogBtnSubmit} disabled={!isValid || submitting} onClick={handleSubmit}>
                         {submitting ? 'Создание...' : 'Создать'}
                     </button>
                 </div>
@@ -1132,6 +1146,11 @@ const DashboardPage: React.FC = () => {
     const [loading, setLoading] = useState(true);
     const [loadingPrograms, setLoadingPrograms] = useState(false);
     const [loadingYears, setLoadingYears] = useState(false);
+    const [cohortStudents, setCohortStudents] = useState<StudentBase[]>([]);
+    const [cohortSpecializations, setCohortSpecializations] = useState<Specialization[]>([]);
+    const [allTags, setAllTags] = useState<TagBase[]>([]);
+    const [deleteConfirm, setDeleteConfirm] = useState<{ title: string; message: string; onConfirm: () => Promise<void> } | null>(null);
+    const [deleteLoading, setDeleteLoading] = useState(false);
 
     /* ── Load faculties from API ── */
     useEffect(() => {
@@ -1211,16 +1230,54 @@ const DashboardPage: React.FC = () => {
         setView('graph');
         try {
             const toLoad = selectedYears.filter((y) => !graphStore[y.id]);
-            const results = await Promise.all(
-                toLoad.map(async (y) => {
-                    const graph = await getCohortGraph(y.cohortId);
-                    return { yearId: y.id, data: apiGraphToFlowData(graph) };
-                }),
-            );
-            if (results.length > 0) {
+            const [graphResults, tagsData, usersData] = await Promise.all([
+                Promise.all(
+                    toLoad.map(async (y) => {
+                        const graph = await getCohortGraph(y.cohortId);
+                        return { yearId: y.id, data: apiGraphToFlowData(graph) };
+                    }),
+                ),
+                getTags().catch(() => [] as TagBase[]),
+                getUsers().catch(() => []),
+            ]);
+
+            /* Populate teachers from users data */
+            const usersMap = new Map(usersData.map(u => [u.user_id, u]));
+            graphResults.forEach(({ data }) => {
+                Object.values(data.details).forEach(detail => {
+                    if (detail.teachers_ids && detail.teachers_ids.length > 0) {
+                        detail.teachers = detail.teachers_ids.map(uid => {
+                            const u = usersMap.get(uid);
+                            if (!u) return null;
+                            const name = [u.surname, u.name, u.patronymic].filter(Boolean).join(' ');
+                            return {
+                                name,
+                                role: 'Преподаватель',
+                                avatar: `https://ui-avatars.com/api/?name=${encodeURIComponent(name)}&background=E0E7FF&color=135BEC&size=80`,
+                                user_id: uid,
+                            };
+                        }).filter((t): t is NonNullable<typeof t> => t != null);
+                    }
+                });
+            });
+
+            /* Load students for the primary cohort */
+            const primaryCohortId = selectedYears[0].cohortId;
+            try {
+                const studentsResp = await getCohortStudents(primaryCohortId);
+                setCohortStudents(studentsResp.students ?? []);
+                setCohortSpecializations(studentsResp.specializations ?? []);
+            } catch {
+                setCohortStudents([]);
+                setCohortSpecializations([]);
+            }
+
+            setAllTags(tagsData);
+
+            if (graphResults.length > 0) {
                 setGraphStore((prev) => {
                     const next = { ...prev };
-                    results.forEach(({ yearId, data }) => { next[yearId] = data; });
+                    graphResults.forEach(({ yearId, data }) => { next[yearId] = data; });
                     return next;
                 });
             }
@@ -1235,6 +1292,79 @@ const DashboardPage: React.FC = () => {
         if (view === 'graph') { setView('years'); setSelectedCourse(null); }
         else if (view === 'years') { setView('programs'); setSelectedProgram(null); setSelectedYears([]); }
         else if (view === 'programs') { setView('faculties'); setSelectedFaculty(null); setSelectedProgram(null); setSelectedYears([]); }
+    };
+
+    /* ── Delete handlers ── */
+    const handleDeleteFaculty = (e: React.MouseEvent, faculty: Faculty) => {
+        e.stopPropagation();
+        setDeleteConfirm({
+            title: 'Удалить факультет',
+            message: `Факультет «${faculty.name}» и все связанные программы, когорты и учебные планы будут удалены безвозвратно.`,
+            onConfirm: async () => {
+                await apiDeleteFaculty(faculty.facultyId);
+                setAllFaculties(prev => prev.filter(f => f.id !== faculty.id));
+                toast.success('Факультет удалён');
+            },
+        });
+    };
+
+    const handleDeleteProgram = (e: React.MouseEvent, prog: Program) => {
+        e.stopPropagation();
+        setDeleteConfirm({
+            title: 'Удалить программу',
+            message: `Программа «${prog.name}» и все связанные когорты и учебные планы будут удалены безвозвратно.`,
+            onConfirm: async () => {
+                await apiDeleteProgram(prog.programId);
+                if (selectedFaculty) {
+                    setAllPrograms(prev => ({
+                        ...prev,
+                        [selectedFaculty.id]: (prev[selectedFaculty.id] || []).filter(p => p.id !== prog.id),
+                    }));
+                    setAllFaculties(prev => prev.map(f => f.id === selectedFaculty.id ? { ...f, programsCount: f.programsCount - 1 } : f));
+                }
+                toast.success('Программа удалена');
+            },
+        });
+    };
+
+    const handleDeleteYear = (e: React.MouseEvent, yp: YearPlan) => {
+        e.stopPropagation();
+        setDeleteConfirm({
+            title: 'Удалить когорту',
+            message: `Когорта ${yp.label} и все студенты, учебный план будут удалены безвозвратно.`,
+            onConfirm: async () => {
+                await apiDeleteCohort(yp.cohortId);
+                if (selectedProgram) {
+                    setAllYears(prev => ({
+                        ...prev,
+                        [selectedProgram.id]: (prev[selectedProgram.id] || []).filter(y => y.id !== yp.id),
+                    }));
+                    if (selectedFaculty) {
+                        setAllPrograms(prev => ({
+                            ...prev,
+                            [selectedFaculty.id]: (prev[selectedFaculty.id] || []).map(p =>
+                                p.id === selectedProgram.id ? { ...p, yearsCount: p.yearsCount - 1 } : p
+                            ),
+                        }));
+                    }
+                }
+                setSelectedYears(prev => prev.filter(y => y.id !== yp.id));
+                toast.success('Когорта удалена');
+            },
+        });
+    };
+
+    const executeDelete = async () => {
+        if (!deleteConfirm) return;
+        setDeleteLoading(true);
+        try {
+            await deleteConfirm.onConfirm();
+        } catch {
+            toast.error('Не удалось выполнить удаление');
+        } finally {
+            setDeleteLoading(false);
+            setDeleteConfirm(null);
+        }
     };
 
     const applyCourseUpdate = useCallback((updated: CourseDetail) => {
@@ -1286,6 +1416,10 @@ const DashboardPage: React.FC = () => {
                 semester_number: semesterNumber,
                 credits: updated.credits,
                 is_elective: updated.type === 'elective',
+                elective_students_ids: updated.elective_students_ids,
+                tags_ids: updated.tags?.map(t => t.tag_id),
+                specialization_id: updated.specialization?.specialization_id ?? null,
+                teachers_ids: updated.teachers_ids,
             });
             applyCourseUpdate(updated);
             toast.success('Дисциплина обновлена');
@@ -1350,9 +1484,18 @@ const DashboardPage: React.FC = () => {
                         </div>
                     </div>
                     <div className={styles.cardGrid}>
-                        {loading && <p style={{ gridColumn: '1 / -1', textAlign: 'center', color: '#94A3B8', padding: '40px 0' }}>Загрузка факультетов...</p>}
+                        {loading && Array.from({ length: 3 }).map((_, i) => (
+                            <div key={i} className={styles.skeletonCard}>
+                                <div className={`${styles.skeletonLine} ${styles.skeletonLineShort}`} />
+                                <div className={`${styles.skeletonLine} ${styles.skeletonLineLong}`} />
+                                <div className={`${styles.skeletonLine} ${styles.skeletonLineMedium}`} />
+                            </div>
+                        ))}
                         {!loading && allFaculties.map((f) => (
                             <button key={f.id} className={styles.programCard} onClick={() => handleSelectFaculty(f)}>
+                                <div className={styles.cardDeleteBtn} onClick={(e) => handleDeleteFaculty(e, f)} title="Удалить факультет">
+                                    <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M3.5 3.5l7 7M10.5 3.5l-7 7" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" /></svg>
+                                </div>
                                 <div className={styles.programCardAccent} style={{ background: f.color }} />
                                 <div className={styles.programCardBody}>
                                     <div className={styles.programCardTop}>
@@ -1372,14 +1515,16 @@ const DashboardPage: React.FC = () => {
                             </button>
                         ))}
 
-                        {/* Create card */}
-                        <button className={styles.createCard} onClick={() => setShowCreateFaculty(true)}>
-                            <div className={styles.createCardIcon}>
-                                <svg width="28" height="28" viewBox="0 0 28 28" fill="none"><path d="M14 7v14M7 14h14" stroke="currentColor" strokeWidth="2" strokeLinecap="round" /></svg>
-                            </div>
-                            <span className={styles.createCardText}>Создать факультет</span>
-                            <span className={styles.createCardHint}>Добавить новый факультет или институт</span>
-                        </button>
+                        {/* Create card — always visible */}
+                        {!loading && (
+                            <button className={styles.createCard} onClick={() => setShowCreateFaculty(true)}>
+                                <div className={styles.createCardIcon}>
+                                    <svg width="28" height="28" viewBox="0 0 28 28" fill="none"><path d="M14 7v14M7 14h14" stroke="currentColor" strokeWidth="2" strokeLinecap="round" /></svg>
+                                </div>
+                                <span className={styles.createCardText}>Создать факультет</span>
+                                <span className={styles.createCardHint}>Добавить новый факультет или институт</span>
+                            </button>
+                        )}
                     </div>
                 </div>
             )}
@@ -1394,9 +1539,18 @@ const DashboardPage: React.FC = () => {
                         </div>
                     </div>
                     <div className={styles.cardGrid}>
-                        {loadingPrograms && <p style={{ gridColumn: '1 / -1', textAlign: 'center', color: '#94A3B8', padding: '40px 0' }}>Загрузка программ...</p>}
+                        {loadingPrograms && Array.from({ length: 3 }).map((_, i) => (
+                            <div key={i} className={styles.skeletonCard}>
+                                <div className={`${styles.skeletonLine} ${styles.skeletonLineShort}`} />
+                                <div className={`${styles.skeletonLine} ${styles.skeletonLineLong}`} />
+                                <div className={`${styles.skeletonLine} ${styles.skeletonLineMedium}`} />
+                            </div>
+                        ))}
                         {!loadingPrograms && (allPrograms[selectedFaculty.id] || []).map((p) => (
                             <button key={p.id} className={styles.programCard} onClick={() => handleSelectProgram(p)}>
+                                <div className={styles.cardDeleteBtn} onClick={(e) => handleDeleteProgram(e, p)} title="Удалить программу">
+                                    <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M3.5 3.5l7 7M10.5 3.5l-7 7" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" /></svg>
+                                </div>
                                 <div className={styles.programCardAccent} style={{ background: p.color }} />
                                 <div className={styles.programCardBody}>
                                     <div className={styles.programCardTop}>
@@ -1421,14 +1575,16 @@ const DashboardPage: React.FC = () => {
                             </button>
                         ))}
 
-                        {/* Create card */}
-                        <button className={styles.createCard} onClick={() => setShowCreateProgram(true)}>
-                            <div className={styles.createCardIcon}>
-                                <svg width="28" height="28" viewBox="0 0 28 28" fill="none"><path d="M14 7v14M7 14h14" stroke="currentColor" strokeWidth="2" strokeLinecap="round" /></svg>
-                            </div>
-                            <span className={styles.createCardText}>Создать программу</span>
-                            <span className={styles.createCardHint}>Добавить новую образовательную программу</span>
-                        </button>
+                        {/* Create card — always visible */}
+                        {!loadingPrograms && (
+                            <button className={styles.createCard} onClick={() => setShowCreateProgram(true)}>
+                                <div className={styles.createCardIcon}>
+                                    <svg width="28" height="28" viewBox="0 0 28 28" fill="none"><path d="M14 7v14M7 14h14" stroke="currentColor" strokeWidth="2" strokeLinecap="round" /></svg>
+                                </div>
+                                <span className={styles.createCardText}>Создать программу</span>
+                                <span className={styles.createCardHint}>Добавить новую образовательную программу</span>
+                            </button>
+                        )}
                     </div>
                 </div>
             )}
@@ -1478,7 +1634,13 @@ const DashboardPage: React.FC = () => {
                     )}
 
                     <div className={styles.cardGrid}>
-                        {loadingYears && <p style={{ gridColumn: '1 / -1', textAlign: 'center', color: '#94A3B8', padding: '40px 0' }}>Загрузка годов набора...</p>}
+                        {loadingYears && Array.from({ length: 3 }).map((_, i) => (
+                            <div key={i} className={styles.skeletonCard}>
+                                <div className={`${styles.skeletonLine} ${styles.skeletonLineShort}`} style={{ height: 24 }} />
+                                <div className={`${styles.skeletonLine} ${styles.skeletonLineMedium}`} />
+                                <div className={`${styles.skeletonLine} ${styles.skeletonLineShort}`} />
+                            </div>
+                        ))}
                         {!loadingYears && (allYears[selectedProgram.id] || []).map((yp) => {
                             const isSelected = selectedYears.some((y) => y.id === yp.id);
                             const sc = statusConfig[yp.status];
@@ -1488,26 +1650,19 @@ const DashboardPage: React.FC = () => {
                                     className={`${styles.yearCard} ${isSelected ? styles.yearCardSelected : ''}`}
                                     onClick={() => handleToggleYear(yp)}
                                 >
+                                    <div className={styles.cardDeleteBtn} onClick={(e) => handleDeleteYear(e, yp)} title="Удалить когорту">
+                                        <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M3.5 3.5l7 7M10.5 3.5l-7 7" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" /></svg>
+                                    </div>
+                                    <div className={styles.yearCardTop}>
+                                        <span className={styles.yearStatus} style={{ background: sc.bg, color: sc.color }}>{sc.label}</span>
+                                    </div>
+                                    <span className={styles.yearNumber}>{yp.year}</span>
+                                    <span className={styles.yearLabel}>{yp.label}</span>
                                     {isSelected && (
                                         <div className={styles.yearCardCheck}>
                                             <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M3.5 8l3 3 6-6" stroke="#fff" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" /></svg>
                                         </div>
                                     )}
-                                    <div className={styles.yearCardTop}>
-                                        <span className={styles.yearNumber}>{yp.year}</span>
-                                        <span className={styles.yearStatus} style={{ background: sc.bg, color: sc.color }}>{sc.label}</span>
-                                    </div>
-                                    <span className={styles.yearLabel}>{yp.label}</span>
-                                    <div className={styles.yearStats}>
-                                        <div className={styles.yearStat}>
-                                            <svg width="13" height="13" viewBox="0 0 13 13" fill="none"><path d="M6.5 2l-4.5 2.25 4.5 2.25 4.5-2.25L6.5 2z" stroke="currentColor" strokeWidth="1.1" /><path d="M2 7l4.5 2.25L11 7" stroke="currentColor" strokeWidth="1.1" strokeLinecap="round" /></svg>
-                                            {yp.coursesCount} дисц.
-                                        </div>
-                                        <div className={styles.yearStat}>
-                                            <svg width="13" height="13" viewBox="0 0 13 13" fill="none"><circle cx="6.5" cy="5" r="2" stroke="currentColor" strokeWidth="1.1" /><path d="M2.5 12c0-2.21 1.79-4 4-4s4 1.79 4 4" stroke="currentColor" strokeWidth="1.1" strokeLinecap="round" /></svg>
-                                            {yp.studentsCount} студ.
-                                        </div>
-                                    </div>
                                 </button>
                             );
                         })}
@@ -1598,7 +1753,14 @@ const DashboardPage: React.FC = () => {
 
             {/* Course detail panel */}
             {selectedCourse && (
-                <CourseDetailPanel course={selectedCourse} onClose={() => setSelectedCourse(null)} onSave={handleSave} />
+                <CourseDetailPanel
+                    course={selectedCourse}
+                    onClose={() => setSelectedCourse(null)}
+                    onSave={handleSave}
+                    cohortStudents={cohortStudents}
+                    specializations={cohortSpecializations}
+                    allTags={allTags}
+                />
             )}
 
             {/* Create modals */}
@@ -1637,6 +1799,38 @@ const DashboardPage: React.FC = () => {
                         setShowCreateYear(false);
                     }}
                 />
+            )}
+
+            {/* ── Delete confirmation modal ── */}
+            {deleteConfirm && (
+                <div className={styles.deleteBackdrop} onClick={() => !deleteLoading && setDeleteConfirm(null)}>
+                    <div className={styles.deleteModal} onClick={(e) => e.stopPropagation()}>
+                        <div className={styles.deleteIcon}>
+                            <svg width="28" height="28" viewBox="0 0 28 28" fill="none">
+                                <circle cx="14" cy="14" r="12" stroke="#EF4444" strokeWidth="1.5" />
+                                <path d="M14 9v6M14 19v.5" stroke="#EF4444" strokeWidth="1.5" strokeLinecap="round" />
+                            </svg>
+                        </div>
+                        <h3 className={styles.deleteTitle}>{deleteConfirm.title}</h3>
+                        <p className={styles.deleteMessage}>{deleteConfirm.message}</p>
+                        <div className={styles.deleteActions}>
+                            <button
+                                className={styles.deleteCancelBtn}
+                                onClick={() => setDeleteConfirm(null)}
+                                disabled={deleteLoading}
+                            >
+                                Отмена
+                            </button>
+                            <button
+                                className={styles.deleteConfirmBtn}
+                                onClick={executeDelete}
+                                disabled={deleteLoading}
+                            >
+                                {deleteLoading ? 'Удаление...' : 'Удалить'}
+                            </button>
+                        </div>
+                    </div>
+                </div>
             )}
         </div>
     );

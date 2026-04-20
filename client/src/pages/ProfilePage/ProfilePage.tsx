@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { useAuth } from '../../contexts/AuthContext';
+import { useAuth, getUserRole } from '../../contexts/AuthContext';
 import { apiClient } from '../../api';
 import styles from './ProfilePage.module.css';
 
@@ -11,6 +11,7 @@ const ProfilePage: React.FC = () => {
     const [phone, setPhone] = useState(user?.phone ?? '');
     const [saving, setSaving] = useState(false);
 
+    const role = getUserRole(user);
     const fullName = [user?.surname, user?.name, user?.patronymic].filter(Boolean).join(' ') || '—';
     const avatarUrl = user?.avatar ?? `https://api.dicebear.com/7.x/avataaars/svg?seed=${encodeURIComponent(fullName)}&backgroundColor=b6e3f4`;
 
@@ -61,6 +62,9 @@ const ProfilePage: React.FC = () => {
                             />
                         </div>
                         <h2 className={styles.name}>{fullName}</h2>
+                        <span className={styles.roleBadge} style={{ color: role.color, background: role.bg }}>
+                            {role.label}
+                        </span>
                     </div>
                 </div>
 
@@ -112,6 +116,18 @@ const ProfilePage: React.FC = () => {
                         <div className={styles.infoItem}>
                             <label>ISU ID</label>
                             <span>{user?.isu_id ?? '—'}</span>
+                        </div>
+                        <div className={styles.infoItem}>
+                            <label>Роль</label>
+                            <span style={{ color: role.color, fontWeight: 600 }}>{role.label}</span>
+                        </div>
+                        <div className={styles.infoItem}>
+                            <label>Теги</label>
+                            <span>
+                                {user?.tags && user.tags.length > 0
+                                    ? user.tags.map((t) => t.name).join(', ')
+                                    : '—'}
+                            </span>
                         </div>
                         <div className={styles.infoItem}>
                             <label>Провайдер</label>

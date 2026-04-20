@@ -28,7 +28,7 @@ async def get_courses(skip: int = 0, limit: int = 100, user=Depends(role_require
 @router.get("/{course_id}", response_model=CourseResponseSchema, dependencies=[Depends(role_required())])
 async def get_course(course_id: int, user=Depends(role_required())):
     """Получить курс по ID"""
-    return await Course.get_by_id(course_id, relations=['cohort', 'specialization', 'prerequisites', 'elective_students.user', 'tags'])
+    return await Course.get_by_id(course_id, relations=['cohort', 'specialization', 'prerequisites', 'elective_students.user', 'tags', 'teachers'])
 
 
 @router.put("/{course_id}", response_model=CourseResponseSchema, dependencies=[Depends(role_required(AdminRole, CohortDirectorRole, CohortManagerRole))])
@@ -37,7 +37,7 @@ async def update_course(course_id: int, course_update: CourseUpdateSchema, user=
     course = await Course.get_by_id(course_id, relations=['cohort'])
     await check_access_to_cohort_or_fail(user, course.cohort)
     course = await Course.update_node(course_id, course_update.model_dump(exclude_unset=True))
-    await course.load_relations('cohort', 'elective_students.user')
+    await course.load_relations('cohort', 'elective_students.user', 'teachers')
     return course
 
 

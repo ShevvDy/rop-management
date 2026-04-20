@@ -140,11 +140,16 @@
 /* ── Tabs ── */
 .tabs {
   display: flex;
+  align-items: center;
   gap: 0;
   border-bottom: 2px solid var(--border);
   margin-bottom: 20px;
   overflow-x: auto;
+  overflow-y: hidden;
+  scrollbar-width: none;
 }
+
+.tabs::-webkit-scrollbar { display: none; }
 
 .tab {
   display: flex;
@@ -184,6 +189,96 @@
   background: #F1F5F9;
   color: var(--text-muted);
 }
+
+.tabDelete {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 18px;
+  height: 18px;
+  border-radius: 4px;
+  color: var(--text-muted);
+  opacity: 0;
+  transition: all 0.15s;
+  flex-shrink: 0;
+}
+
+.tab:hover .tabDelete { opacity: 1; }
+.tabDelete:hover { background: #FEE2E2; color: #EF4444; }
+
+.tabAddBtn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  border: 1px dashed var(--border);
+  background: none;
+  color: var(--text-muted);
+  cursor: pointer;
+  border-radius: 8px;
+  margin: 4px 8px;
+  transition: all 0.15s;
+  flex-shrink: 0;
+}
+
+.tabAddBtn:hover {
+  border-color: var(--primary);
+  color: var(--primary);
+  background: var(--primary-light);
+}
+
+.tabAddForm {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  margin: 4px 8px;
+  flex-shrink: 0;
+}
+
+.tabAddInput {
+  width: 160px;
+  padding: 6px 10px;
+  border: 1px solid var(--primary);
+  border-radius: 6px;
+  font-size: 13px;
+  font-family: inherit;
+  outline: none;
+  color: var(--text);
+}
+
+.tabAddConfirm {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border: none;
+  background: var(--primary);
+  color: #fff;
+  cursor: pointer;
+  border-radius: 6px;
+  transition: background 0.15s;
+}
+
+.tabAddConfirm:hover:not(:disabled) { background: var(--primary-hover); }
+.tabAddConfirm:disabled { opacity: 0.5; cursor: not-allowed; }
+
+.tabAddCancel {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border: 1px solid var(--border);
+  background: #fff;
+  color: var(--text-muted);
+  cursor: pointer;
+  border-radius: 6px;
+  transition: all 0.15s;
+}
+
+.tabAddCancel:hover { border-color: var(--text-muted); color: var(--text); }
 
 .specDot {
   width: 8px;
@@ -885,10 +980,27 @@
   padding: 10px 14px;
   border-radius: 8px;
   transition: background 0.1s;
-  cursor: default;
+  cursor: pointer;
 }
 
 .pickerCard:hover { background: #F8FAFC; }
+
+.pickerCardSelected {
+  background: #EBF5FF;
+}
+
+.pickerCardSelected:hover {
+  background: #DBEAFE;
+}
+
+.pickerCheckbox {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 18px;
+  height: 18px;
+}
 
 .pickerAvatar {
   width: 36px;

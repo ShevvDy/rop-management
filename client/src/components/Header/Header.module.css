@@ -88,8 +88,22 @@
 }
 
 .userRole {
+  font-size: 10px;
+  font-weight: 600;
+  padding: 2px 8px;
+  border-radius: 4px;
+  align-self: flex-end;
+  line-height: 1.4;
+}
+
+.dropdownRole {
   font-size: 11px;
-  color: var(--text-muted);
+  font-weight: 600;
+  padding: 2px 8px;
+  border-radius: 4px;
+  align-self: flex-start;
+  margin-top: 4px;
+  line-height: 1.4;
 }
 
 .avatarBtn {

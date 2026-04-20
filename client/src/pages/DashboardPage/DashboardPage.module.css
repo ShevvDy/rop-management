@@ -226,8 +226,8 @@
 
 .yearCardCheck {
   position: absolute;
-  top: 12px;
-  right: 12px;
+  bottom: 14px;
+  right: 14px;
   width: 24px;
   height: 24px;
   border-radius: 50%;
@@ -240,8 +240,7 @@
 .yearCardTop {
   display: flex;
   align-items: center;
-  justify-content: space-between;
-  margin-bottom: 8px;
+  margin-bottom: 12px;
 }
 
 .yearNumber {
@@ -1217,4 +1216,164 @@
   .gridHeader {
     flex-direction: column;
   }
+}
+
+/* ── Skeleton loading cards ── */
+@keyframes shimmer {
+  0% { background-position: -400px 0; }
+  100% { background-position: 400px 0; }
+}
+
+.skeletonCard {
+  border-radius: var(--radius);
+  border: 1px solid var(--border);
+  background: #fff;
+  padding: 20px;
+  min-height: 140px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.skeletonLine {
+  height: 14px;
+  border-radius: 6px;
+  background: linear-gradient(90deg, #F1F5F9 25%, #E2E8F0 50%, #F1F5F9 75%);
+  background-size: 800px 100%;
+  animation: shimmer 1.5s infinite ease-in-out;
+}
+
+.skeletonLineShort { width: 40%; }
+.skeletonLineMedium { width: 70%; }
+.skeletonLineLong { width: 90%; }
+
+/* ── Delete button on cards ── */
+.cardDeleteBtn {
+  position: absolute;
+  top: 12px;
+  right: 10px;
+  width: 28px;
+  height: 28px;
+  border: none;
+  background: none;
+  color: var(--text-muted);
+  cursor: pointer;
+  border-radius: 6px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  opacity: 0;
+  transition: all 0.15s;
+  z-index: 3;
+}
+
+.cardDeleteBtn:hover {
+  background: #FEE2E2;
+  color: #EF4444;
+}
+
+/* ── Delete confirmation modal ── */
+.deleteBackdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.4);
+  z-index: 1000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  animation: fadeInBackdrop 0.15s ease;
+}
+
+@keyframes fadeInBackdrop {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+.deleteModal {
+  background: #fff;
+  border-radius: 16px;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.2);
+  width: 400px;
+  max-width: 90vw;
+  padding: 32px;
+  text-align: center;
+  animation: modalPop 0.2s ease;
+}
+
+@keyframes modalPop {
+  from { opacity: 0; transform: scale(0.95); }
+  to { opacity: 1; transform: scale(1); }
+}
+
+.deleteIcon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 56px;
+  height: 56px;
+  border-radius: 50%;
+  background: #FEF2F2;
+  margin-bottom: 16px;
+}
+
+.deleteTitle {
+  font-size: 18px;
+  font-weight: 700;
+  color: var(--text);
+  margin-bottom: 8px;
+}
+
+.deleteMessage {
+  font-size: 14px;
+  color: var(--text-muted);
+  line-height: 1.5;
+  margin-bottom: 24px;
+}
+
+.deleteActions {
+  display: flex;
+  gap: 10px;
+}
+
+.deleteCancelBtn {
+  flex: 1;
+  padding: 10px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: #fff;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text-secondary);
+  cursor: pointer;
+  font-family: inherit;
+  transition: all 0.15s;
+}
+
+.deleteCancelBtn:hover:not(:disabled) {
+  border-color: var(--text-muted);
+  color: var(--text);
+}
+
+.deleteCancelBtn:disabled { opacity: 0.5; cursor: not-allowed; }
+
+.deleteConfirmBtn {
+  flex: 1;
+  padding: 10px;
+  border: none;
+  border-radius: 10px;
+  background: #EF4444;
+  font-size: 14px;
+  font-weight: 600;
+  color: #fff;
+  cursor: pointer;
+  font-family: inherit;
+  transition: background 0.15s;
+}
+
+.deleteConfirmBtn:hover:not(:disabled) { background: #DC2626; }
+.deleteConfirmBtn:disabled { opacity: 0.6; cursor: not-allowed; }
+
+.programCard:hover .cardDeleteBtn,
+.yearCard:hover .cardDeleteBtn {
+  opacity: 1;
 }

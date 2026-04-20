@@ -17,3 +17,7 @@ export async function createProgram(payload: ProgramCreatePayload): Promise<Prog
     const { data } = await apiClient.post<ProgramResponse>('/program', payload);
     return data;
 }
+
+export async function deleteProgram(programId: number): Promise<void> {
+    await apiClient.delete(`/program/${programId}`);
+}

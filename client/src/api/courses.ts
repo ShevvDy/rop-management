@@ -11,6 +11,10 @@ export interface CourseUpdatePayload {
     syllabus_link?: string | null;
     rpd_link?: string | null;
     is_last?: boolean;
+    elective_students_ids?: number[];
+    specialization_id?: number | null;
+    tags_ids?: number[];
+    teachers_ids?: number[];
 }
 
 export async function updateCourse(courseId: number, payload: CourseUpdatePayload): Promise<CourseBase> {

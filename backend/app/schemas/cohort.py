@@ -50,6 +50,7 @@ class EducationPlanSchema(BaseModel):
     class Node(CourseBaseSchema):
         course_id: Optional[int] = Field(None, description="ID курса")
         elective_students_ids: list[int] = Field([], description="Студенты, записанные на курс")
+        teachers_ids: list[int] = Field([], description="ID преподавателей курса")
 
     class Edge(BaseModel):
         source: int | str = Field(..., description="ID или код исходного курса")

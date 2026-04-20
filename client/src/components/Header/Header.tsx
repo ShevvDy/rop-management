@@ -7,7 +7,7 @@ const Header: React.FC = () => {
     const [showDropdown, setShowDropdown] = useState(false);
     const navigate = useNavigate();
     const dropdownRef = useRef<HTMLDivElement>(null);
-    const { user, logout } = useAuth();
+    const { user, role, logout } = useAuth();
 
     useEffect(() => {
         const handleClickOutside = (e: MouseEvent) => {
@@ -34,7 +34,7 @@ const Header: React.FC = () => {
                     </svg>
                     <span className={styles.brandName}>UNITMO</span>
                     <span className={styles.brandDivider}>|</span>
-                    <span className={styles.brandDescription}>Единый справочник контактов</span>
+                    <span className={styles.brandDescription}>Единый сервис управления данными</span>
                 </div>
             </div>
 
@@ -44,6 +44,7 @@ const Header: React.FC = () => {
                 <div className={styles.user} ref={dropdownRef}>
                     <div className={styles.userInfo}>
                         <span className={styles.userName}>{fullName}</span>
+                        <span className={styles.userRole} style={{ color: role.color, background: role.bg }}>{role.label}</span>
                     </div>
                     <button
                         className={styles.avatarBtn}
@@ -59,6 +60,7 @@ const Header: React.FC = () => {
                                 <div className={styles.dropdownInfo}>
                                     <span className={styles.dropdownName}>{fullName}</span>
                                     <span className={styles.dropdownEmail}>{user?.email ?? '—'}</span>
+                                    <span className={styles.dropdownRole} style={{ color: role.color, background: role.bg }}>{role.label}</span>
                                 </div>
                             </div>
                             <div className={styles.dropdownDivider} />

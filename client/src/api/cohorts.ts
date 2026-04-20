@@ -38,3 +38,7 @@ export async function updateCohortStudents(cohortId: number, updates: StudentUpd
     const { data } = await apiClient.put<CohortStudentsResponse>(`/cohort/${cohortId}/students`, updates);
     return data;
 }
+
+export async function deleteCohort(cohortId: number): Promise<void> {
+    await apiClient.delete(`/cohort/${cohortId}`);
+}

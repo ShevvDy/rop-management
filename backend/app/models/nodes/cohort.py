@@ -79,10 +79,11 @@ class Cohort(BaseNode):
         await self._update_relationship(data, 'manager')
 
     async def get_education_plan(self) -> dict[str, list[dict[str, Any]]]:
-        await self.load_relations('courses.prerequisites', 'courses.elective_students')
+        await self.load_relations('courses.prerequisites', 'courses.elective_students', 'courses.teachers')
         education_plan = {"nodes": [], "edges": []}
         for course in sorted(self.courses, key=lambda c: c.semester_number):
             course._relations['elective_students_ids'] = [student.student_id for student in course.elective_students]
+            course._relations['teachers_ids'] = [teacher.user_id for teacher in course.teachers]
             education_plan["nodes"].append(course)
             for prereq in course.prerequisites:
                 education_plan["edges"].append({"source": prereq.course_id, "target": course.course_id})
