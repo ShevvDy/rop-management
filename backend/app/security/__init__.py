@@ -7,12 +7,13 @@ from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 
 from .auth import AuthBase
 from .roles import *
+from .access import *
 from ..exceptions import UnauthorizedException, AppException, ForbiddenException
 from ..utils.types import DictStrAny
 from ..settings import settings
 
 
-oauth2_schema = HTTPBearer()
+oauth2_schema = HTTPBearer(auto_error=False)
 
 def get_provider_cls_by_access_token(token: str) -> Optional[Type['AuthBase']]:
     from .auth import AuthYandex
@@ -66,22 +67,12 @@ def get_provider_token_info(access_token: str) -> Tuple[Type['AuthBase'], DictSt
     return cls, token_info
 
 
-async def token_required(credentials: HTTPAuthorizationCredentials = Depends(oauth2_schema)):
-    from ..models import OAuthProvider
-
-    access_token = credentials.credentials
-    cls, token_info = get_provider_token_info(access_token)
-    user = await OAuthProvider.get_user_by_provider_user_id(cls.provider_name, cls.get_provider_user_id(token_info))
-    if user is None:
-        raise UnauthorizedException()
-
-    return user
-
-
 def role_required(*roles_models: type[Role]) -> Callable:
     async def decorated(credentials: HTTPAuthorizationCredentials = Depends(oauth2_schema)):
         from ..models import OAuthProvider
 
+        if credentials is None:
+            raise UnauthorizedException()
         access_token = credentials.credentials
         cls, token_info = get_provider_token_info(access_token)
         user = await OAuthProvider.get_user_by_provider_user_id(cls.provider_name, cls.get_provider_user_id(token_info))
@@ -92,7 +83,7 @@ def role_required(*roles_models: type[Role]) -> Callable:
             return user
         if not all(issubclass(role, Role) for role in roles_models):
             raise AppException(message="Некорректные роли для проверки доступа")
-        if not any(await role.check_role(user) for role in roles_models):
+        if not any([await role.check_role(user) for role in roles_models]):
             raise ForbiddenException()
 
         return user

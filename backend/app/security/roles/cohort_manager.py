@@ -5,5 +5,5 @@ from ...models import User
 class CohortManagerRole(Role):
     @classmethod
     async def check_role(cls, user: User) -> bool:
-        await user.load('managed_cohorts')
+        await user.load_relations('managed_cohorts')
         return len(user.managed_cohorts) > 0
