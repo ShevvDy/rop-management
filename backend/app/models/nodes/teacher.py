@@ -1,8 +1,10 @@
 from neomodel import (
     DateProperty,
     AsyncRelationshipTo,
+    AsyncRelationshipFrom,
     IntegerProperty,
     AsyncOne,
+    AsyncZeroOrMore,
 )
 
 from ..base_node import BaseNode
@@ -30,6 +32,12 @@ class Teacher(BaseNode):
         ".faculty.Faculty",
         "WORKS_AT_FACULTY",
         AsyncOne,
+    )
+
+    courses_rel = AsyncRelationshipFrom(
+        ".course.Course",
+        "TAUGHT_BY",
+        AsyncZeroOrMore,
     )
 
     @property

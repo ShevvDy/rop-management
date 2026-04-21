@@ -39,7 +39,7 @@ class CourseUpdateSchema(BaseModel):
     prerequisites_ids: Optional[list[int]] = Field(default=None, description="Список ID курсов-пререквизитов")
     tags_ids: Optional[list[int]] = Field(default=None, description="Список ID тегов курса")
     elective_students_ids: Optional[list[int]] = Field(default=None, description="Студенты, выбравшие курс")
-    teachers_ids: Optional[list[int]] = Field(default=None, description="ID преподавателей (user_id)")
+    teachers_ids: Optional[list[int]] = Field(default=None, description="ID преподавателей")
 
 
 class CourseResponseSchema(CourseBaseSchema):
@@ -47,22 +47,32 @@ class CourseResponseSchema(CourseBaseSchema):
     from .specialization import SpecializationBaseSchema
     from .tag import TagBaseSchema
     from .student import StudentBaseSchema
-    from .user import UserBaseSchema
+    from .teacher import TeacherBaseSchema
 
     CohortBaseSchema: ClassVar
     SpecializationBaseSchema: ClassVar
     TagBaseSchema: ClassVar
     StudentBaseSchema: ClassVar
-    UserBaseSchema: ClassVar
+    TeacherBaseSchema: ClassVar
 
     class Student(StudentBaseSchema):
         from .user import UserBaseSchema
         UserBaseSchema: ClassVar
         user: UserBaseSchema = Field(..., description="Пользователь")
 
+    class Teacher(TeacherBaseSchema):
+        from .user import UserBaseSchema
+        from .faculty import FacultyBaseSchema
+
+        UserBaseSchema: ClassVar
+        FacultyBaseSchema: ClassVar
+
+        user: UserBaseSchema = Field(..., description="Пользователь")
+        faculty: FacultyBaseSchema = Field(..., description="Факультет")
+
     cohort: CohortBaseSchema = Field(..., description="Год набора")
     specialization: Optional[SpecializationBaseSchema] = Field(None, description="Специализация")
     tags: list[TagBaseSchema] = Field(default=[], description="Список тегов курса")
     prerequisites: list[CourseBaseSchema] = Field(default=[], description="Список курсов-пререквизитов")
     elective_students: list[Student] = Field([], description="Студенты, выбравшие курс")
-    teachers: list[UserBaseSchema] = Field(default=[], description="Преподаватели курса")
+    teachers: list[Teacher] = Field(default=[], description="Преподаватели курса")
