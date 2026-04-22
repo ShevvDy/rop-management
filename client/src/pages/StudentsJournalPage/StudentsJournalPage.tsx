@@ -204,6 +204,11 @@ const StudentsJournalPage: React.FC = () => {
     const [editSpecId, setEditSpecId] = useState<number | null>(null);
     const [editLoading, setEditLoading] = useState(false);
 
+    /* ── Bulk assign specialization ── */
+    const [bulkSpecOpen, setBulkSpecOpen] = useState(false);
+    const [bulkSpecId, setBulkSpecId] = useState<number | null>(null);
+    const [bulkSpecLoading, setBulkSpecLoading] = useState(false);
+
     /* ── Delete confirm modal ── */
     const [deleteTarget, setDeleteTarget] = useState<StudentBase | null>(null);
     const [deleteLoading, setDeleteLoading] = useState(false);
@@ -404,6 +409,23 @@ const StudentsJournalPage: React.FC = () => {
         }
     };
 
+    const handleBulkAssignSpec = async () => {
+        if (!bulkSpecId || !selectedCohortId) return;
+        setBulkSpecLoading(true);
+        try {
+            const updates = unassigned.map(s => ({ student_id: s.student_id, specialization_id: bulkSpecId }));
+            await updateCohortStudents(selectedCohortId, updates);
+            toast.success(`Специализация назначена ${updates.length} студентам`);
+            setBulkSpecOpen(false);
+            setBulkSpecId(null);
+            loadStudents();
+        } catch {
+            toast.error('Не удалось назначить специализацию');
+        } finally {
+            setBulkSpecLoading(false);
+        }
+    };
+
     const handleAddSpecialization = async () => {
         if (!newSpecName.trim() || !selectedCohortId) return;
         setAddSpecLoading(true);
@@ -520,7 +542,17 @@ const StudentsJournalPage: React.FC = () => {
                     <div className={styles.statsRow}>
                         <span className={styles.statBadge}>Всего: {students.length}</span>
                         {unassigned.length > 0 && (
-                            <span className={styles.statBadgeWarn}>Без специализации: {unassigned.length}</span>
+                            <>
+                                <span className={styles.statBadgeWarn}>Без специализации: {unassigned.length}</span>
+                                {specializations.length > 0 && (
+                                    <button
+                                        className={styles.statBadgeBtn}
+                                        onClick={() => { setBulkSpecOpen(true); setBulkSpecId(null); }}
+                                    >
+                                        Назначить всем
+                                    </button>
+                                )}
+                            </>
                         )}
                     </div>
                 )}
@@ -1064,6 +1096,63 @@ const StudentsJournalPage: React.FC = () => {
                         </p>
                     </div>
                 )}
+            </ModalDialog>
+
+            {/* ── Bulk assign specialization ── */}
+            <ModalDialog
+                open={bulkSpecOpen}
+                title="Назначить специализацию"
+                onClose={() => { setBulkSpecOpen(false); setBulkSpecId(null); }}
+                onOk={handleBulkAssignSpec}
+                okText={`Назначить (${unassigned.length})`}
+                okLoading={bulkSpecLoading}
+                okDisabled={!bulkSpecId}
+            >
+                <div className={styles.editModalContent}>
+                    <p style={{ fontSize: 14, color: 'var(--text-secondary)', marginBottom: 16 }}>
+                        Выберите специализацию для <strong>{unassigned.length}</strong> студентов без специализации:
+                    </p>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                        {specializations.map(spec => {
+                            const isActive = bulkSpecId === spec.specialization_id;
+                            return (
+                                <button
+                                    key={spec.specialization_id}
+                                    onClick={() => setBulkSpecId(spec.specialization_id)}
+                                    style={{
+                                        display: 'flex', alignItems: 'center', gap: 10,
+                                        padding: '12px 14px', borderRadius: 8, cursor: 'pointer',
+                                        border: isActive ? `2px solid ${getSpecColor(spec.specialization_id)}` : '1px solid var(--border)',
+                                        background: isActive ? `${getSpecColor(spec.specialization_id)}08` : '#fff',
+                                        fontFamily: 'inherit', transition: 'all 0.15s',
+                                    }}
+                                >
+                                    <span style={{
+                                        width: 20, height: 20, borderRadius: '50%', flexShrink: 0,
+                                        border: isActive ? 'none' : '2px solid var(--border)',
+                                        background: isActive ? getSpecColor(spec.specialization_id) : 'none',
+                                        display: 'flex', alignItems: 'center', justifyContent: 'center',
+                                    }}>
+                                        {isActive && (
+                                            <svg width="10" height="10" viewBox="0 0 10 10" fill="none">
+                                                <path d="M2 5l2.5 2.5L8 3" stroke="#fff" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+                                            </svg>
+                                        )}
+                                    </span>
+                                    <span style={{
+                                        fontSize: 14, fontWeight: isActive ? 600 : 500,
+                                        color: isActive ? getSpecColor(spec.specialization_id) : 'var(--text)',
+                                    }}>
+                                        {spec.name}
+                                    </span>
+                                    <span style={{ marginLeft: 'auto', fontSize: 12, color: 'var(--text-muted)' }}>
+                                        {students.filter(s => s.specialization_id === spec.specialization_id).length} студ.
+                                    </span>
+                                </button>
+                            );
+                        })}
+                    </div>
+                </div>
             </ModalDialog>
         </div>
     );

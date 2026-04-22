@@ -712,6 +712,10 @@ const CourseDetailPanel: React.FC<CourseDetailPanelProps> = ({
     const typeInfo = typeLabels[course.type] || typeLabels.required;
     const enrolledIds = course.elective_students_ids || [];
     const enrolledStudents = cohortStudents.filter(s => enrolledIds.includes(s.student_id));
+    const hasSpecialization = !!course.specialization;
+    const specStudents = hasSpecialization
+        ? cohortStudents.filter(s => s.specialization_id === course.specialization!.specialization_id)
+        : [];
 
     const handleSaveEdit = (form: EditForm) => {
         const matchedTags = allTags.filter(t => form.tags_ids.includes(t.tag_id));
@@ -778,29 +782,34 @@ const CourseDetailPanel: React.FC<CourseDetailPanelProps> = ({
                         <span className={styles.badge} style={{ background: typeInfo.bg, color: typeInfo.color }}>{typeInfo.label}</span>
                         <span className={`${styles.badge} ${styles.badgeOutline}`}>{course.credits} ЧАСА</span>
                     </div>
-                    <h2 className={styles.title}>{course.name}</h2>
-                    <p className={styles.subtitle}>{course.code} • {course.semester}</p>
-
-                    {/* Tags & Specialization */}
-                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4, marginTop: 8 }}>
+                    <h2 className={styles.title}>
+                        {course.name}
                         {course.specialization && (
                             <span style={{
-                                fontSize: 11, fontWeight: 600, padding: '2px 10px', borderRadius: 4,
+                                fontSize: 11, fontWeight: 600, padding: '3px 10px', borderRadius: 4, marginLeft: 8,
                                 background: getSpecColor(course.specialization.specialization_id) + '14',
                                 color: getSpecColor(course.specialization.specialization_id),
+                                verticalAlign: 'middle', display: 'inline-block', position: 'relative', top: -2,
                             }}>
                                 {course.specialization.name}
                             </span>
                         )}
-                        {course.tags?.map(tag => (
-                            <span key={tag.tag_id} style={{
-                                fontSize: 11, fontWeight: 600, padding: '2px 10px', borderRadius: 4,
-                                background: getTagBgColor(tag.tag_id), color: getTagTextColor(tag.tag_id),
-                            }}>
-                                {tag.name}
-                            </span>
-                        ))}
-                    </div>
+                    </h2>
+                    <p className={styles.subtitle}>{course.code} • {course.semester}</p>
+
+                    {/* Tags */}
+                    {course.tags && course.tags.length > 0 && (
+                        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4, marginTop: 8, marginBottom: 4 }}>
+                            {course.tags.map(tag => (
+                                <span key={tag.tag_id} style={{
+                                    fontSize: 11, fontWeight: 600, padding: '2px 10px', borderRadius: 4,
+                                    background: getTagBgColor(tag.tag_id), color: getTagTextColor(tag.tag_id),
+                                }}>
+                                    {tag.name}
+                                </span>
+                            ))}
+                        </div>
+                    )}
 
                     <button className={styles.editBtn} onClick={() => setIsEditing(true)}>
                         <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
@@ -826,6 +835,28 @@ const CourseDetailPanel: React.FC<CourseDetailPanelProps> = ({
 
                 {/* Students */}
                 <div className={styles.section}>
+                    {(() => {
+                        /* Determine which students to show */
+                        let displayStudents: StudentBase[];
+                        let canManualEnroll = false;
+                        let emptyLabel: string;
+
+                        if (hasSpecialization) {
+                            /* Course has specialization → show students of that specialization */
+                            displayStudents = specStudents;
+                            emptyLabel = `Нет студентов в специализации «${course.specialization!.name}»`;
+                        } else if (course.type === 'elective') {
+                            /* Elective without specialization → manual enrollment */
+                            displayStudents = enrolledStudents;
+                            canManualEnroll = true;
+                            emptyLabel = 'Нет записанных студентов';
+                        } else {
+                            /* Required without specialization → all cohort students */
+                            displayStudents = cohortStudents;
+                            emptyLabel = 'Нет студентов в когорте';
+                        }
+
+                        return (<>
                     <div className={styles.sectionHeader}>
                         <h4 className={styles.sectionTitle}>
                             <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
@@ -833,11 +864,9 @@ const CourseDetailPanel: React.FC<CourseDetailPanelProps> = ({
                                 <path d="M1 14c0-2.76 2.24-5 5-5s5 2.24 5 5" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" />
                             </svg>
                             СТУДЕНТЫ
-                            <span className={styles.sectionCount}>
-                                {course.type === 'elective' ? enrolledStudents.length : cohortStudents.length}
-                            </span>
+                            <span className={styles.sectionCount}>{displayStudents.length}</span>
                         </h4>
-                        {course.type === 'elective' && (
+                        {canManualEnroll && (
                             <button className={styles.addSmallBtn} onClick={() => setIsAddingStudent(true)}>
                                 <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
                                     <path d="M7 2v10M2 7h10" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
@@ -848,13 +877,10 @@ const CourseDetailPanel: React.FC<CourseDetailPanelProps> = ({
                     </div>
 
                     {(() => {
-                        const displayStudents = course.type === 'elective' ? enrolledStudents : cohortStudents;
                         if (displayStudents.length === 0) {
                             return (
                                 <div className={styles.electiveStudentsInfo}>
-                                    <span className={styles.electiveStudentsHint}>
-                                        {course.type === 'elective' ? 'Нет записанных студентов' : 'Нет студентов в когорте'}
-                                    </span>
+                                    <span className={styles.electiveStudentsHint}>{emptyLabel}</span>
                                 </div>
                             );
                         }
@@ -868,7 +894,7 @@ const CourseDetailPanel: React.FC<CourseDetailPanelProps> = ({
                                         key={s.student_id}
                                         s={s}
                                         specName={specializations.find(sp => sp.specialization_id === s.specialization_id)?.name}
-                                        onRemove={course.type === 'elective' ? () => handleRemoveStudent(s.student_id) : undefined}
+                                        onRemove={canManualEnroll ? () => handleRemoveStudent(s.student_id) : undefined}
                                     />
                                 ))}
                                 {hasMore && (
@@ -887,6 +913,8 @@ const CourseDetailPanel: React.FC<CourseDetailPanelProps> = ({
                                 )}
                             </div>
                         );
+                    })()}
+                    </>);
                     })()}
                 </div>
 

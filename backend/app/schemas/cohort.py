@@ -48,9 +48,15 @@ class EducationPlanSchema(BaseModel):
     CourseBaseSchema: ClassVar
 
     class Node(CourseBaseSchema):
+        from .tag import TagBaseSchema
+        TagBaseSchema: ClassVar
+
         course_id: Optional[int] = Field(None, description="ID курса")
         elective_students_ids: list[int] = Field([], description="Студенты, записанные на курс")
         teachers_ids: list[int] = Field([], description="ID преподавателей курса")
+        specialization_id: Optional[int] = Field(None, description="ID специализации курса")
+        specialization_name: Optional[str] = Field(None, description="Название специализации курса")
+        tags_data: list[TagBaseSchema] = Field([], description="Теги курса")
 
     class Edge(BaseModel):
         source: int | str = Field(..., description="ID или код исходного курса")

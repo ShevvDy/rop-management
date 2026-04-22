@@ -182,6 +182,9 @@ export interface CourseBase {
     is_last?: boolean;
     elective_students_ids?: number[];
     teachers_ids?: number[];
+    specialization_id?: number | null;
+    specialization_name?: string | null;
+    tags_data?: TagBase[];
 }
 
 export interface EducationPlanEdge {

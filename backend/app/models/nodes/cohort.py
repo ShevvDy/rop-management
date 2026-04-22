@@ -79,11 +79,15 @@ class Cohort(BaseNode):
         await self._update_relationship(data, 'manager')
 
     async def get_education_plan(self) -> dict[str, list[dict[str, Any]]]:
-        await self.load_relations('courses.prerequisites', 'courses.elective_students', 'courses.teachers')
+        await self.load_relations('courses.prerequisites', 'courses.elective_students', 'courses.teachers', 'courses.specialization', 'courses.tags')
         education_plan = {"nodes": [], "edges": []}
         for course in sorted(self.courses, key=lambda c: c.semester_number):
             course._relations['elective_students_ids'] = [student.student_id for student in course.elective_students]
             course._relations['teachers_ids'] = [teacher.user_id for teacher in course.teachers]
+            spec = course.specialization if hasattr(course, 'specialization') and course.specialization else None
+            course._relations['specialization_id'] = spec.specialization_id if spec else None
+            course._relations['specialization_name'] = spec.name if spec else None
+            course._relations['tags_data'] = [{"tag_id": t.tag_id, "name": t.name} for t in (course.tags if hasattr(course, 'tags') else [])]
             education_plan["nodes"].append(course)
             for prereq in course.prerequisites:
                 education_plan["edges"].append({"source": prereq.course_id, "target": course.course_id})

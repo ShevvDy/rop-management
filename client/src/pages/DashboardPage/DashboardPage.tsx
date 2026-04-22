@@ -325,6 +325,8 @@ const apiGraphToFlowData = (graph: EducationPlanGraph): YearGraphData => {
             materials: [],
             elective_students_ids: c.elective_students_ids,
             teachers_ids: c.teachers_ids,
+            specialization: c.specialization_id ? { specialization_id: c.specialization_id, name: c.specialization_name || '' } : null,
+            tags: c.tags_data || [],
         };
     });
 

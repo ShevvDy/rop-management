@@ -137,6 +137,21 @@
   color: #D97706;
 }
 
+.statBadgeBtn {
+  padding: 4px 12px;
+  border-radius: 20px;
+  font-size: 12px;
+  font-weight: 600;
+  background: var(--primary);
+  color: #fff;
+  border: none;
+  cursor: pointer;
+  font-family: inherit;
+  transition: background 0.15s;
+}
+
+.statBadgeBtn:hover { background: var(--primary-hover); }
+
 /* ── Tabs ── */
 .tabs {
   display: flex;
@@ -154,6 +169,7 @@
 .tab {
   display: flex;
   align-items: center;
+  justify-content: center;
   gap: 8px;
   padding: 12px 20px;
   border: none;
@@ -166,6 +182,8 @@
   margin-bottom: -2px;
   transition: all 0.15s;
   white-space: nowrap;
+  flex: 1;
+  min-width: 0;
 }
 
 .tab:hover { color: var(--primary); }
