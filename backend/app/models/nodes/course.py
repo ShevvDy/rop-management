@@ -78,7 +78,7 @@ class Course(BaseNode):
 
     # Преподаватели курса
     teachers_rel = AsyncRelationshipTo(
-        ".user.User",
+        ".teacher.Teacher",
         "TAUGHT_BY",
         AsyncZeroOrMore,
     )
@@ -89,11 +89,11 @@ class Course(BaseNode):
         from .specialization import Specialization
         from .tag import Tag
         from .student import Student
-        from .user import User
+        from .teacher import Teacher
 
         await cls._check_relationship_before_creation(data, 'cohort', Cohort)
         await cls._check_relationship_before_creation(data, 'specialization', Specialization)
-        await cls._check_relationship_before_creation(data, 'teachers', User)
+        await cls._check_relationship_before_creation(data, 'teachers', Teacher)
 
         specialization = data.get('specialization_obj')
         cohort = data.get('cohort_obj')
@@ -137,10 +137,10 @@ class Course(BaseNode):
         from .specialization import Specialization
         from .tag import Tag
         from .student import Student
-        from .user import User
+        from .teacher import Teacher
 
         await self._check_relationship_before_update(data, 'specialization', Specialization)
-        await self._check_relationship_before_update(data, 'teachers', User)
+        await self._check_relationship_before_update(data, 'teachers', Teacher)
         specialization = data.get('specialization_obj')
         if specialization:
             await specialization.load_relations('cohort')
