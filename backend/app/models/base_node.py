@@ -17,6 +17,7 @@ class BaseNode(AsyncStructuredNode):
     Аналог Base класса для SQLAlchemy.
     """
     __abstract_node__ = True
+    _cascade_delete_relations = []
 
     def __init__(self, *args, **kwargs) -> None:
         super().__init__(*args, **kwargs)
@@ -434,9 +435,26 @@ class BaseNode(AsyncStructuredNode):
         await node._after_update(data)
         return node
 
+    async def _delete_relations(self) -> None:
+        await self.load_relations(*self._cascade_delete_relations)
+        for rel_name in self._cascade_delete_relations:
+            relation = getattr(self, rel_name)
+            if isinstance(relation, list):
+                for related_node in relation:
+                    await related_node.delete_node()
+            elif relation is not None:
+                await relation.delete_node()
+
     async def _before_delete(self) -> None:
         """Хук перед удалением узла"""
         pass
+
+    async def delete_node(self) -> DictStrAny:
+        node_data = await self.to_dict()
+        await self._delete_relations()
+        await self._before_delete()
+        await self.delete()
+        return node_data
 
     @classmethod
     async def delete_by_id(cls, item_id: int) -> DictStrAny:
@@ -450,8 +468,4 @@ class BaseNode(AsyncStructuredNode):
             Данные удалённого узла в виде словаря
         """
         node = await cls.get_by_id(item_id)
-        # Сохраняем данные перед удалением
-        node_data = await node.to_dict()
-        await node._before_delete()
-        await node.delete()
-        return node_data
+        return await node.delete_node()

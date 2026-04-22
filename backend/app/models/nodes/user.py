@@ -18,6 +18,7 @@ class User(BaseNode):
     Узел пользователя в графовой БД Neo4j.
     Содержит базовую информацию о пользователе системы.
     """
+    _cascade_delete_relations = ['oauth_provider', 'student_data', 'teacher_data']
 
     # Основные свойства
     user_id = IntegerProperty(unique_index=True)

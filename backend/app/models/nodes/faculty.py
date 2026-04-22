@@ -11,6 +11,7 @@ from ..base_node import BaseNode
 
 class Faculty(BaseNode):
     """Факультет"""
+    _cascade_delete_relations = ['programs', 'teachers']
 
     faculty_id = IntegerProperty(unique_index=True, required=True)
     name = StringProperty(unique_index=True, required=True)

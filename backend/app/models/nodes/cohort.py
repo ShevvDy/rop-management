@@ -12,6 +12,7 @@ from ...utils.types import DictStrAny
 
 class Cohort(BaseNode):
     """Год набора студентов"""
+    _cascade_delete_relations = ['specializations', 'students', 'courses']
 
     cohort_id = IntegerProperty(unique_index=True)
     cohort_year = IntegerProperty(default=lambda: BaseNode.now().year)

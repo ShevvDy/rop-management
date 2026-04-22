@@ -3,7 +3,7 @@ from neomodel import (
     AsyncRelationshipFrom,
     AsyncRelationshipTo,
     StringProperty,
-    AsyncOne,
+    AsyncOne, AsyncZeroOrMore,
 )
 
 from ..base_node import BaseNode
@@ -13,6 +13,7 @@ from ...utils.types import DictStrAny
 
 class Program(BaseNode):
     """Образовательная программа"""
+    _cascade_delete_relations = ['cohorts']
 
     program_id = IntegerProperty(unique_index=True)
     name = StringProperty(unique_index=True, required=True)
@@ -32,7 +33,8 @@ class Program(BaseNode):
     # Связи (входящие)
     cohorts_rel = AsyncRelationshipFrom(
         ".cohort.Cohort",
-        "BELONGS_TO_PROGRAM"
+        "BELONGS_TO_PROGRAM",
+        AsyncZeroOrMore,
     )
 
     @classmethod
